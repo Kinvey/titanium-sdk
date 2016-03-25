@@ -1,13 +1,15 @@
 /* global Titanium:false, CloudPush:false */
 import { KinveyError } from 'kinvey-sdk-core/src/errors';
 import { EventEmitter } from 'events';
-import DataStore from 'kinvey-sdk-core/src/stores/dataStore';
-import { HttpMethod, DataStoreType } from 'kinvey-sdk-core/src/enums';
-import User from 'kinvey-sdk-core/src/user';
-import Client from 'kinvey-sdk-core/src/client';
-import Query from 'kinvey-sdk-core/src/query';
-import Device from 'kinvey-sdk-core/src/device';
+import { NetworkRequest } from 'kinvey-sdk-core/src/requests/network';
+import { DataStore, DataStoreType } from 'kinvey-sdk-core/src/stores/datastore';
+import { HttpMethod, AuthType } from 'kinvey-sdk-core/src/enums';
+import { User } from 'kinvey-sdk-core/src/user';
+import { Client } from 'kinvey-sdk-core/src/client';
+import { Query } from 'kinvey-sdk-core/src/query';
+import { Device } from 'kinvey-sdk-core/src/device';
 import assign from 'lodash/assign';
+import url from 'url';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 const notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
 const deviceCollectionName = process.env.KINVEY_DEVICE_COLLECTION_NAME || 'kinvey_device';
@@ -149,23 +151,28 @@ const Push = {
           throw new KinveyError('Device is already registered. To force registration ' +
             'please set options.force to true.');
         }
-
-        return User.getActiveUser();
-      }).then(user => {
+      }).then(() => {
+        const user = User.getActiveUser();
         const client = Client.sharedInstance();
-        return client.executeNetworkRequest({
+        const request = new NetworkRequest({
           method: HttpMethod.POST,
-          pathname: `/${pushNamespace}/${client.appKey}/register-device`,
+          authType: user ? AuthType.Session : AuthType.Master,
+          url: url.format({
+            protocol: client.protocol,
+            host: client.host,
+            pathname: `/${pushNamespace}/${client.appKey}/register-device`
+          }),
           properties: options.properties,
-          auth: user ? client.sessionAuth() : client.masterAuth(),
           data: {
             platform: device.platform.name,
             framework: device.isCordova() ? 'phonegap' : 'titanium',
             deviceId: deviceId,
             userId: user ? null : options.userId
           },
-          timeout: options.timeout
+          timeout: options.timeout,
+          client: client
         });
+        return request.execute();
       }).then(response => store.save({ _id: deviceId, registered: true }).then(() => response.data));
     });
 
@@ -195,22 +202,27 @@ const Push = {
         throw new KinveyError('This device has not been registered.');
       }
 
-      return User.getActiveUser().then(user => {
-        const client = Client.sharedInstance();
-        return client.executeNetworkRequest({
-          method: HttpMethod.POST,
-          properties: options.properties,
-          auth: user ? client.sessionAuth() : client.masterAuth(),
-          pathname: `/${pushNamespace}/${client.appKey}/unregister-device`,
-          data: {
-            platform: platform.name,
-            framework: device.isCordova() ? 'phonegap' : 'titanium',
-            deviceId: deviceId,
-            userId: user ? null : options.userId
-          },
-          timeout: options.timeout
-        });
-      }).then(response => store.removeById(deviceId).then(() => response.data));
+      const user = User.getActiveUser();
+      const client = Client.sharedInstance();
+      const request = new NetworkRequest({
+        method: HttpMethod.POST,
+        authType: user ? AuthType.Session : AuthType.Master,
+        url: url.format({
+          protocol: client.protocol,
+          host: client.host,
+          pathname: `/${pushNamespace}/${client.appKey}/unregister-device`
+        }),
+        properties: options.properties,
+        data: {
+          platform: device.platform.name,
+          framework: device.isCordova() ? 'phonegap' : 'titanium',
+          deviceId: deviceId,
+          userId: user ? null : options.userId
+        },
+        timeout: options.timeout,
+        client: client
+      });
+      return request.execute().then(response => store.removeById(deviceId).then(() => response.data));
     });
 
     return promise;

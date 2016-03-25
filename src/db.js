@@ -1,7 +1,7 @@
 import { DB as CoreDB } from 'kinvey-sdk-core/src/rack/persistence/db';
 import { Memory } from 'kinvey-sdk-core/src/rack/persistence/adapters/memory';
 import { TitaniumDB } from './titaniumdb';
-import log from 'kinvey-sdk-core/src/log';
+import { Log } from 'kinvey-sdk-core/src/log';
 import forEach from 'lodash/forEach';
 import isArray from 'lodash/isArray';
 
@@ -43,7 +43,7 @@ export class DB extends CoreDB {
 
           break;
         default:
-          log.warn(`The ${adapter} adapter is is not recognized.`);
+          Log.warn(`The ${adapter} adapter is is not recognized.`);
       }
 
       return true;
@@ -51,11 +51,11 @@ export class DB extends CoreDB {
 
     if (!this.adapter) {
       if (Memory.isSupported()) {
-        log.error('Provided adapters are unsupported on this platform. ' +
+        Log.error('Provided adapters are unsupported on this platform. ' +
           'Defaulting to DBAdapter.Memory adapter.', adapters);
         this.adapter = new Memory(dbName);
       } else {
-        log.error('Provided adapters are unsupported on this platform.', adapters);
+        Log.error('Provided adapters are unsupported on this platform.', adapters);
       }
     }
   }
