@@ -1,6 +1,6 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.0.0-beta.10",
+  "version": "3.0.0-beta.11",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
@@ -24,9 +24,9 @@
   },
   "scripts": {},
   "dependencies": {
-    "kinvey-sdk-core": "3.0.0-beta.9",
+    "kinvey-sdk-core": "git://github.com/Kinvey/javascript-sdk-core.git#develop",
     "lodash": "^4.3.0",
-    "request": "^2.67.0"
+    "parse-headers": "^2.0.1"
   },
   "devDependencies": {
     "babel-eslint": "6.0.0-beta.6",
@@ -65,8 +65,16 @@
     "Titanium"
   ],
   "browserify": {
-    "transform": [["babelify", {
-      "presets": ["es2015", "stage-2"]
-    }]]
+    "transform": [
+      [
+        "babelify",
+        {
+          "presets": [
+            "es2015",
+            "stage-2"
+          ]
+        }
+      ]
+    ]
   }
 }

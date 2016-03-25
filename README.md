@@ -1,4 +1,4 @@
-# Kinvey
+# Kinvey JavaScript Titanium SDK
 [Kinvey](http://www.kinvey.com) (pronounced Kin-vey, like convey) makes it ridiculously easy for developers to setup, use and operate a cloud backend for their mobile apps. They don't have to worry about connecting to various cloud services, setting up servers for their backend, or maintaining and scaling them.
 
 This node and bower module makes it very easy to connect your Titanium app with Kinvey.
@@ -8,7 +8,7 @@ This node and bower module makes it very easy to connect your Titanium app with 
 ### 1. Sign up for Kinvey
 To use the library, sign up for Kinvey if you have not already done so. Go to the [sign up](https://console.kinvey.com/#signup) page, and follow the steps provided.
 
-### 2. Install the library
+### 2. Install the sdk
 You can install the module using npm:
 
 ```bash
@@ -21,16 +21,16 @@ or
 bower install kinvey-titanium-sdk#3.0.0-beta.9 --save
 ```
 
-### 3. Configure the library
-Now, the library is available for use in your project.
+### 3. Configure the sdk
+Now, the sdk is available for use in your project.
 
-If you installed the library with npm, import the library in your code using `require`.
+If you installed the sdk with npm, import the sdk in your code using `require`.
 
 ```javascript
 var Kinvey = require('kinvey-titanium-sdk');
 ```
 
-If you installed the library with bower, add a script tag to your main html file.
+If you installed the sdk with bower, add a script tag to your main html file.
 
 ```html
 <script src="bower_components/kinvey-titanium-sdk/dist/kinvey.min.js"></script>

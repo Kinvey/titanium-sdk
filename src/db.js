@@ -16,7 +16,6 @@ const DBAdapter = {
 Object.freeze(DBAdapter);
 export { DBAdapter };
 
-
 /**
  * @private
  */

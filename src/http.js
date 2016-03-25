@@ -1,15 +1,15 @@
 /* global Titanium:false */
+import Promise from 'kinvey-sdk-core/src/utils/promise';
 import { KinveyMiddleware } from 'kinvey-sdk-core/src/rack/middleware';
-import { HttpMethod } from 'kinvey-sdk-core/src/enums';
 import { Device } from 'kinvey-sdk-core/src/device';
-import http from 'request';
+import parseHeaders from 'parse-headers';
 import isString from 'lodash/isString';
 import isFunction from 'lodash/isFunction';
 
 /**
  * @private
  */
-export class HttpMiddleware extends KinveyMiddleware {
+export class TitaniumHttpMiddleware extends KinveyMiddleware {
   constructor(name = 'Kinvey Titanium Http Middleware') {
     super(name);
   }
@@ -21,46 +21,31 @@ export class HttpMiddleware extends KinveyMiddleware {
 
   handle(request) {
     return super.handle(request).then(() => {
-      if (this.isMobileWeb()) {
-        return new Promise((resolve, reject) => {
-          http({
-            url: request.url,
-            method: request.method,
-            headers: request.headers,
-            body: request.data,
-            followRedirect: request.followRedirect
-          }, (error, response, body) => {
-            if (error) {
-              if (error.code === 'ENOTFOUND') {
-                return reject(new Error('It looks like you do not have a network connection. ' +
-                  'Please check that you are connected to a network and try again.'));
-              }
+      const promise = new Promise((resolve, reject) => {
+        let xhr;
 
-              return reject(error);
-            }
+        if (this.isMobileWeb()) {
+          xhr = new XMLHttpRequest();
 
-            request.response = {
-              statusCode: response.statusCode,
-              headers: response.headers,
-              data: body
-            };
+          xhr.ontimeout = function() {
+            reject(new Error('timeout'));
+          };
+        } else {
+          xhr = Titanium.Network.createHTTPClient();
+          xhr.autoRedirect = request.followRedirect || true;
 
-            return resolve(request);
-          });
-        });
-      }
-
-      return new Promise((resolve, reject) => {
-        const httpClient = Titanium.Network.createHTTPClient();
-
-        // Set the TLS version (iOS only)
-        if (isFunction(httpClient.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
-          httpClient.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
+          // Set the TLS version (iOS only)
+          if (isFunction(xhr.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
+            xhr.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
+          }
         }
 
+        // Set timeout
+        // xhr.timeout = request.timeout || 0;
+
         // Set success and failure callback
-        httpClient.onLoad = httpClient.onError = (e) => {
-          const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : httpClient.status;
+        xhr.onload = xhr.onerror = (e) => {
+          const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
 
           if (isString(e.error) && e.error.toLowerCase().indexOf('timed out') !== -1) {
             e.type = 'timeout';
@@ -69,8 +54,8 @@ export class HttpMiddleware extends KinveyMiddleware {
           if ((status >= 200 && status < 300) || status === 304) {
             request.response = {
               statusCode: status,
-              headers: httpClient.allResponseHeaders,
-              data: httpClient.responseText
+              headers: parseHeaders(xhr.allResponseHeaders),
+              data: xhr.responseText
             };
 
             return resolve(request);
@@ -80,22 +65,20 @@ export class HttpMiddleware extends KinveyMiddleware {
         };
 
         // Open the request
-        httpClient.open(request.method, request.url);
+        xhr.open(request.method, request.url);
 
         // Set request headers
         for (const name in request.headers) {
           if (request.headers.hasOwnProperty(name)) {
-            httpClient.setRequestHeader(name, request.headers[name]);
+            xhr.setRequestHeader(name, request.headers[name]);
           }
         }
 
-        // Send request data
-        if (request.data && (request.method === HttpMethod.PATCH ||
-                           request.method === HttpMethod.POST ||
-                           request.method === HttpMethod.PUT)) {
-          httpClient.send(request.data);
-        }
+        // Send request
+        xhr.send(request.data);
       });
+
+      return promise;
     });
   }
 }

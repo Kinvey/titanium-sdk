@@ -1,4 +1,5 @@
 /* global Titanium:false, CloudPush:false */
+import Promise from 'kinvey-sdk-core/src/utils/promise';
 import { KinveyError } from 'kinvey-sdk-core/src/errors';
 import { EventEmitter } from 'events';
 import { NetworkRequest } from 'kinvey-sdk-core/src/requests/network';
