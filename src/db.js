@@ -22,6 +22,8 @@ export { DBAdapter };
  */
 export class DB extends CoreDB {
   constructor(dbName = 'kinvey', adapters = [DBAdapter.TitaniumDB, DBAdapter.Memory]) {
+    super(dbName, [DBAdapter.Memory]);
+
     if (!isArray(adapters)) {
       adapters = [adapters];
     }

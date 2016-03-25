@@ -1,8 +1,7 @@
 import { Kinvey } from 'kinvey-sdk-core';
-import { CacheRack } from 'kinvey-sdk-core/src/rack/racks/cacheRack';
+import { CacheRack, NetworkRack } from 'kinvey-sdk-core/src/rack/rack';
 import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-sdk-core/src/rack/middleware/cache';
 import { CacheMiddleware } from './cache';
-import { NetworkRack } from 'kinvey-sdk-core/src/rack/racks/networkRack';
 import { HttpMiddleware as CoreHttpMiddleware } from 'kinvey-sdk-core/src/rack/middleware/http';
 import { HttpMiddleware } from './http';
 import { Push } from './push';
