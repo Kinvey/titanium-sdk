@@ -18,7 +18,7 @@ npm install kinvey-titanium-sdk --save
 or
 
 ```bash
-bower install kinvey-titanium-sdk#3.0.0-beta.7 --save
+bower install kinvey-titanium-sdk#3.0.0-beta.9 --save
 ```
 
 ### 3. Configure the library
