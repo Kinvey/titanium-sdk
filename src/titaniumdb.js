@@ -1,6 +1,4 @@
-/* global Titanium:false */
-import Promise from 'kinvey-sdk-core/src/utils/promise';
-import { KinveyError, NotFoundError } from 'kinvey-sdk-core/src/errors';
+import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core/src/errors';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';

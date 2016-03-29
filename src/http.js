@@ -1,7 +1,5 @@
-/* global Titanium:false */
-import Promise from 'kinvey-sdk-core/src/utils/promise';
-import { KinveyMiddleware } from 'kinvey-sdk-core/src/rack/middleware';
-import { Device } from 'kinvey-sdk-core/src/device';
+import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware';
+import { isMobileWeb } from './utils';
 import parseHeaders from 'parse-headers';
 import isString from 'lodash/isString';
 import isFunction from 'lodash/isFunction';
@@ -9,14 +7,9 @@ import isFunction from 'lodash/isFunction';
 /**
  * @private
  */
-export class TitaniumHttpMiddleware extends KinveyMiddleware {
+export class HttpMiddleware extends KinveyMiddleware {
   constructor(name = 'Kinvey Titanium Http Middleware') {
     super(name);
-  }
-
-  isMobileWeb() {
-    const device = new Device();
-    return device.os.name === 'mobileweb';
   }
 
   handle(request) {
@@ -24,7 +17,7 @@ export class TitaniumHttpMiddleware extends KinveyMiddleware {
       const promise = new Promise((resolve, reject) => {
         let xhr;
 
-        if (this.isMobileWeb()) {
+        if (isMobileWeb()) {
           xhr = new XMLHttpRequest();
 
           xhr.ontimeout = function() {

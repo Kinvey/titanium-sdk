@@ -1,11 +1,11 @@
-import { KinveyMiddleware } from 'kinvey-sdk-core/src/rack/middleware';
-import { HttpMethod, StatusCode } from 'kinvey-sdk-core/src/enums';
+import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware';
+import { HttpMethod, StatusCode } from 'kinvey-javascript-sdk-core/src/enums';
 import { DB, DBAdapter } from './db';
 
 /**
  * @private
  */
-export class TitaniumCacheMiddleware extends KinveyMiddleware {
+export class CacheMiddleware extends KinveyMiddleware {
   constructor(name = 'Kinvey Titanium Cache Middleware', adapters = [DBAdapter.TitaniumDB, DBAdapter.Memory]) {
     super(name, adapters);
   }

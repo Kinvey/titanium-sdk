@@ -9,7 +9,6 @@ npm-debug.log
 report.xml
 docs
 sandbox
-dist
 
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and Webstorm
 *.iml

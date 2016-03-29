@@ -1,18 +1,28 @@
-import { Kinvey } from 'kinvey-sdk-core';
-import { CacheRack, NetworkRack } from 'kinvey-sdk-core/src/rack/rack';
-import { CacheMiddleware } from 'kinvey-sdk-core/src/rack/middleware/cache';
-import { TitaniumCacheMiddleware } from './cache';
-import { SerializeMiddleware } from 'kinvey-sdk-core/src/rack/middleware/serialize';
-import { TitaniumHttpMiddleware } from './http';
+import { Kinvey } from 'kinvey-javascript-sdk-core';
+import { CacheRack, NetworkRack } from 'kinvey-javascript-sdk-core/src/rack/rack';
+import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware/cache';
+import { CacheMiddleware } from './cache';
+import { SerializeMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware/serialize';
+import { HttpMiddleware } from './http';
+import { Device } from 'kinvey-javascript-sdk-core/src/utils/device';
+import { DeviceAdapter } from './device';
+import { Popup } from 'kinvey-javascript-sdk-core/src/utils/popup';
+import { PopupAdapter } from './popup';
 import { Push } from './push';
 
-// Replace Cache middleware
+// Swap Cache middleware
 const cacheRack = CacheRack.sharedInstance();
-cacheRack.swap(CacheMiddleware, new TitaniumCacheMiddleware());
+cacheRack.swap(CoreCacheMiddleware, new CacheMiddleware());
 
-// Replace Http middleware
+// Add Http middleware
 const networkRack = NetworkRack.sharedInstance();
-networkRack.useAfter(SerializeMiddleware, new TitaniumHttpMiddleware());
+networkRack.useAfter(SerializeMiddleware, new HttpMiddleware());
+
+// Use Device Adapter
+Device.use(new DeviceAdapter());
+
+// Use Popup Adapter
+Popup.use(new PopupAdapter());
 
 // Add Push module
 Kinvey.Push = Push;

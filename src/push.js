@@ -1,14 +1,12 @@
-/* global Titanium:false, CloudPush:false */
-import Promise from 'kinvey-sdk-core/src/utils/promise';
-import { KinveyError } from 'kinvey-sdk-core/src/errors';
+import { KinveyError } from 'kinvey-javascript-sdk-core/src/errors';
 import { EventEmitter } from 'events';
-import { NetworkRequest } from 'kinvey-sdk-core/src/requests/network';
-import { DataStore, DataStoreType } from 'kinvey-sdk-core/src/stores/datastore';
-import { HttpMethod, AuthType } from 'kinvey-sdk-core/src/enums';
-import { User } from 'kinvey-sdk-core/src/user';
-import { Client } from 'kinvey-sdk-core/src/client';
-import { Query } from 'kinvey-sdk-core/src/query';
-import { Device } from 'kinvey-sdk-core/src/device';
+import { NetworkRequest } from 'kinvey-javascript-sdk-core/src/requests/network';
+import { DataStore, DataStoreType } from 'kinvey-javascript-sdk-core/src/stores/datastore';
+import { HttpMethod, AuthType } from 'kinvey-javascript-sdk-core/src/enums';
+import { User } from 'kinvey-javascript-sdk-core/src/user';
+import { Client } from 'kinvey-javascript-sdk-core/src/client';
+import { Query } from 'kinvey-javascript-sdk-core/src/query';
+import { isiOS, isAndroid } from './utils';
 import assign from 'lodash/assign';
 import url from 'url';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
@@ -16,7 +14,7 @@ const notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification
 const deviceCollectionName = process.env.KINVEY_DEVICE_COLLECTION_NAME || 'kinvey_device';
 const emitter = new EventEmitter();
 
-const Push = {
+export const Push = {
   listeners() {
     return emitter.listeners(notificationEvent);
   },
@@ -38,11 +36,9 @@ const Push = {
   },
 
   init(options = {}) {
-    const device = new Device();
-
-    if (device.platform.name !== 'android' || device.platform.name !== 'ios') {
-      return Promise.reject(new KinveyError('Kinvey currently does not support ' +
-        `push notifications on ${device.platform.name}.`));
+    if (!isiOS() || !isAndroid()) {
+      return Promise.reject(new KinveyError('Kinvey currently only supports ' +
+        'push notifications on iOS and Android platforms.'));
     }
 
     options = assign({
@@ -58,8 +54,9 @@ const Push = {
     }, options);
 
     const promise = new Promise((resolve, reject) => {
-      if (device.platform.name === 'ios') {
-        if (device.platform.version.split('.')[0] >= 8) {
+      if (isiOS()) {
+        const version = Titanium.Platfrom.version;
+        if (version.split('.')[0] >= 8) {
           Titanium.App.iOS.addEventListener('usernotificationsettings', function registerForPush() {
             Titanium.App.iOS.removeEventListener('usernotificationsettings', registerForPush);
             Titanium.Network.registerForPushNotifications({
@@ -126,7 +123,7 @@ const Push = {
             }
           });
         }
-      } else if (device.platform.name === 'android') {
+      } else if (isAndroid()) {
         CloudPush.retrieveDeviceToken({
           success(e) {
             resolve(e.deviceToken);
@@ -165,8 +162,8 @@ const Push = {
           }),
           properties: options.properties,
           data: {
-            platform: device.platform.name,
-            framework: device.isCordova() ? 'phonegap' : 'titanium',
+            platform: Titanium.Platfrom.osname,
+            framework: 'titanium',
             deviceId: deviceId,
             userId: user ? null : options.userId
           },
@@ -181,12 +178,9 @@ const Push = {
   },
 
   unregister(options = {}) {
-    const device = new Device();
-    const platform = device.platform;
-
-    if (platform.name !== 'android' || platform.name !== 'ios') {
-      return Promise.reject(new KinveyError(`Kinvey currently does not support ' +
-        'push notifications on ${platform.name}.`));
+    if (!isiOS() || !isAndroid()) {
+      return Promise.reject(new KinveyError('Kinvey currently only supports ' +
+        'push notifications on iOS and Android platforms.'));
     }
 
     const store = DataStore.getInstance(deviceCollectionName, DataStoreType.Sync);
@@ -215,8 +209,8 @@ const Push = {
         }),
         properties: options.properties,
         data: {
-          platform: device.platform.name,
-          framework: device.isCordova() ? 'phonegap' : 'titanium',
+          platform: Titanium.Platfrom.osname,
+          framework: 'titanium',
           deviceId: deviceId,
           userId: user ? null : options.userId
         },
