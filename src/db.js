@@ -1,7 +1,7 @@
-import { DB as CoreDB } from 'kinvey-javascript-sdk-core/src/rack/persistence/db';
-import { Memory } from 'kinvey-javascript-sdk-core/src/rack/persistence/adapters/memory';
+import { DB as CoreDB } from 'kinvey-javascript-sdk-core/build/rack/persistence/db';
+import { Memory } from 'kinvey-javascript-sdk-core/build/rack/persistence/adapters/memory';
 import { TitaniumDB } from './titaniumdb';
-import { Log } from 'kinvey-javascript-sdk-core/src/log';
+import { Log } from 'kinvey-javascript-sdk-core/build/log';
 import forEach from 'lodash/forEach';
 import isArray from 'lodash/isArray';
 

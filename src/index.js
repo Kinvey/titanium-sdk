@@ -1,12 +1,12 @@
 import { Kinvey } from 'kinvey-javascript-sdk-core';
-import { CacheRack, NetworkRack } from 'kinvey-javascript-sdk-core/src/rack/rack';
-import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware/cache';
+import { CacheRack, NetworkRack } from 'kinvey-javascript-sdk-core/build/rack/rack';
+import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware/cache';
 import { CacheMiddleware } from './cache';
-import { SerializeMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware/serialize';
+import { SerializeMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware/serialize';
 import { HttpMiddleware } from './http';
-import { Device } from 'kinvey-javascript-sdk-core/src/utils/device';
+import { Device } from 'kinvey-javascript-sdk-core/build/utils/device';
 import { DeviceAdapter } from './device';
-import { Popup } from 'kinvey-javascript-sdk-core/src/utils/popup';
+import { Popup } from 'kinvey-javascript-sdk-core/build/utils/popup';
 import { PopupAdapter } from './popup';
 import { Push } from './push';
 

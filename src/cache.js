@@ -1,5 +1,5 @@
-import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware';
-import { HttpMethod, StatusCode } from 'kinvey-javascript-sdk-core/src/enums';
+import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware';
+import { HttpMethod, StatusCode } from 'kinvey-javascript-sdk-core/build/enums';
 import { DB, DBAdapter } from './db';
 
 /**

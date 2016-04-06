@@ -55,7 +55,7 @@ export class PopupAdapter {
       this.tiWebView.addEventListener('error', this.eventListeners.loadHandler);
       this.popup.addEventListener('close', this.eventListeners.closeHandler);
       this.popup.open();
-      resolve();
+      resolve(this);
     });
     return promise;
   }

@@ -1,4 +1,988 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Kinvey = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.CacheMiddleware = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _middleware = require('kinvey-javascript-sdk-core/build/rack/middleware');
+
+var _enums = require('kinvey-javascript-sdk-core/build/enums');
+
+var _db = require('./db');
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * @private
+ */
+
+var CacheMiddleware = exports.CacheMiddleware = function (_KinveyMiddleware) {
+  _inherits(CacheMiddleware, _KinveyMiddleware);
+
+  function CacheMiddleware() {
+    var name = arguments.length <= 0 || arguments[0] === undefined ? 'Kinvey Titanium Cache Middleware' : arguments[0];
+    var adapters = arguments.length <= 1 || arguments[1] === undefined ? [_db.DBAdapter.TitaniumDB, _db.DBAdapter.Memory] : arguments[1];
+
+    _classCallCheck(this, CacheMiddleware);
+
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(CacheMiddleware).call(this, name, adapters));
+  }
+
+  _createClass(CacheMiddleware, [{
+    key: 'handle',
+    value: function handle(request) {
+      var _this2 = this;
+
+      return _get(Object.getPrototypeOf(CacheMiddleware.prototype), 'handle', this).call(this, request).then(function (_ref) {
+        var appKey = _ref.appKey;
+        var collection = _ref.collection;
+        var id = _ref.id;
+
+        var method = request.method;
+        var query = request.query;
+        var data = request.data;
+        var db = new _db.DB(appKey, _this2.adapters);
+        var promise = void 0;
+
+        if (method === _enums.HttpMethod.GET) {
+          if (id) {
+            if (id === '_count') {
+              promise = db.count(collection, query);
+            } else if (id === '_group') {
+              promise = db.group(collection, data);
+            } else {
+              promise = db.findById(collection, id);
+            }
+          } else {
+            promise = db.find(collection, query);
+          }
+        } else if (method === _enums.HttpMethod.POST || method === _enums.HttpMethod.PUT) {
+          promise = db.save(collection, data);
+        } else if (method === _enums.HttpMethod.DELETE) {
+          if (id) {
+            promise = db.removeById(collection, id);
+          } else {
+            promise = db.remove(collection, query);
+          }
+        }
+
+        return promise.then(function (result) {
+          var statusCode = _enums.StatusCode.Ok;
+
+          if (method === _enums.HttpMethod.POST) {
+            statusCode = _enums.StatusCode.Created;
+          }
+
+          request.response = {
+            statusCode: statusCode,
+            headers: {},
+            data: result
+          };
+
+          return request;
+        });
+      });
+    }
+  }]);
+
+  return CacheMiddleware;
+}(_middleware.KinveyMiddleware);
+},{"./db":2,"kinvey-javascript-sdk-core/build/enums":31,"kinvey-javascript-sdk-core/build/rack/middleware":39}],2:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.DB = exports.DBAdapter = undefined;
+
+var _db = require('kinvey-javascript-sdk-core/build/rack/persistence/db');
+
+var _memory = require('kinvey-javascript-sdk-core/build/rack/persistence/adapters/memory');
+
+var _titaniumdb = require('./titaniumdb');
+
+var _log = require('kinvey-javascript-sdk-core/build/log');
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
+
+var _isArray = require('lodash/isArray');
+
+var _isArray2 = _interopRequireDefault(_isArray);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * @private
+ * Enum for DB Adapters.
+ */
+var DBAdapter = {
+  Memory: 'Memory',
+  TitaniumDB: 'TitaniumDB'
+};
+Object.freeze(DBAdapter);
+exports.DBAdapter = DBAdapter;
+
+/**
+ * @private
+ */
+
+var DB = exports.DB = function (_CoreDB) {
+  _inherits(DB, _CoreDB);
+
+  function DB() {
+    var dbName = arguments.length <= 0 || arguments[0] === undefined ? 'kinvey' : arguments[0];
+    var adapters = arguments.length <= 1 || arguments[1] === undefined ? [DBAdapter.TitaniumDB, DBAdapter.Memory] : arguments[1];
+
+    _classCallCheck(this, DB);
+
+    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DB).call(this, dbName, []));
+
+    if (!(0, _isArray2.default)(adapters)) {
+      adapters = [adapters];
+    }
+
+    (0, _forEach2.default)(adapters, function (adapter) {
+      switch (adapter) {
+        case DBAdapter.Memory:
+          if (_memory.Memory.isSupported()) {
+            _this.adapter = new _memory.Memory(dbName);
+            return false;
+          }
+
+          break;
+        case DBAdapter.TitaniumDB:
+          if (_titaniumdb.TitaniumDB.isSupported()) {
+            _this.adapter = new _titaniumdb.TitaniumDB(dbName);
+            return false;
+          }
+
+          break;
+        default:
+          _log.Log.warn('The ' + adapter + ' adapter is is not recognized.');
+      }
+
+      return true;
+    });
+
+    if (!_this.adapter) {
+      if (_memory.Memory.isSupported()) {
+        _log.Log.error('Provided adapters are unsupported on this platform. ' + 'Defaulting to Memory adapter.', adapters);
+        _this.adapter = new _memory.Memory(dbName);
+      } else {
+        _log.Log.error('Provided adapters are unsupported on this platform.', adapters);
+      }
+    }
+    return _this;
+  }
+
+  return DB;
+}(_db.DB);
+},{"./titaniumdb":8,"kinvey-javascript-sdk-core/build/log":34,"kinvey-javascript-sdk-core/build/rack/persistence/adapters/memory":45,"kinvey-javascript-sdk-core/build/rack/persistence/db":47,"lodash/forEach":231,"lodash/isArray":236}],3:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.DeviceAdapter = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _package = require('../package.json');
+
+var _package2 = _interopRequireDefault(_package);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * @private
+ */
+
+var DeviceAdapter = exports.DeviceAdapter = function () {
+  function DeviceAdapter() {
+    _classCallCheck(this, DeviceAdapter);
+  }
+
+  _createClass(DeviceAdapter, [{
+    key: 'toJSON',
+    value: function toJSON() {
+      return {
+        device: {
+          manufacturer: Titanium.Platform.manufacturer,
+          model: Titanium.Platfrom.model
+        },
+        environment: 'titanium',
+        library: {
+          name: 'titanium',
+          version: Titanium.getVersion()
+        },
+        os: {
+          name: Titanium.Platfrom.osname,
+          version: Titanium.Platfrom.version
+        },
+        sdk: {
+          name: _package2.default.name,
+          version: _package2.default.version
+        }
+      };
+    }
+  }]);
+
+  return DeviceAdapter;
+}();
+},{"../package.json":295}],4:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.HttpMiddleware = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _middleware = require('kinvey-javascript-sdk-core/build/rack/middleware');
+
+var _utils = require('./utils');
+
+var _parseHeaders = require('parse-headers');
+
+var _parseHeaders2 = _interopRequireDefault(_parseHeaders);
+
+var _isString = require('lodash/isString');
+
+var _isString2 = _interopRequireDefault(_isString);
+
+var _isFunction = require('lodash/isFunction');
+
+var _isFunction2 = _interopRequireDefault(_isFunction);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * @private
+ */
+
+var HttpMiddleware = exports.HttpMiddleware = function (_KinveyMiddleware) {
+  _inherits(HttpMiddleware, _KinveyMiddleware);
+
+  function HttpMiddleware() {
+    var name = arguments.length <= 0 || arguments[0] === undefined ? 'Kinvey Titanium Http Middleware' : arguments[0];
+
+    _classCallCheck(this, HttpMiddleware);
+
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(HttpMiddleware).call(this, name));
+  }
+
+  _createClass(HttpMiddleware, [{
+    key: 'handle',
+    value: function handle(request) {
+      return _get(Object.getPrototypeOf(HttpMiddleware.prototype), 'handle', this).call(this, request).then(function () {
+        var promise = new Promise(function (resolve, reject) {
+          var xhr = void 0;
+
+          if ((0, _utils.isMobileWeb)()) {
+            xhr = new XMLHttpRequest();
+
+            xhr.ontimeout = function () {
+              reject(new Error('timeout'));
+            };
+          } else {
+            xhr = Titanium.Network.createHTTPClient();
+            xhr.autoRedirect = request.followRedirect || true;
+
+            // Set the TLS version (iOS only)
+            if ((0, _isFunction2.default)(xhr.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
+              xhr.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
+            }
+          }
+
+          // Set timeout
+          // xhr.timeout = request.timeout || 0;
+
+          // Set success and failure callback
+          xhr.onload = xhr.onerror = function (e) {
+            var status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
+
+            if ((0, _isString2.default)(e.error) && e.error.toLowerCase().indexOf('timed out') !== -1) {
+              e.type = 'timeout';
+            }
+
+            if (status >= 200 && status < 300 || status === 304) {
+              request.response = {
+                statusCode: status,
+                headers: (0, _parseHeaders2.default)(xhr.allResponseHeaders),
+                data: xhr.responseText
+              };
+
+              return resolve(request);
+            }
+
+            return reject(e.error);
+          };
+
+          // Open the request
+          xhr.open(request.method, request.url);
+
+          // Set request headers
+          for (var name in request.headers) {
+            if (request.headers.hasOwnProperty(name)) {
+              xhr.setRequestHeader(name, request.headers[name]);
+            }
+          }
+
+          // Send request
+          xhr.send(request.data);
+        });
+
+        return promise;
+      });
+    }
+  }]);
+
+  return HttpMiddleware;
+}(_middleware.KinveyMiddleware);
+},{"./utils":9,"kinvey-javascript-sdk-core/build/rack/middleware":39,"lodash/isFunction":241,"lodash/isString":249,"parse-headers":273}],5:[function(require,module,exports){
+'use strict';
+
+var _kinveyJavascriptSdkCore = require('kinvey-javascript-sdk-core');
+
+var _rack = require('kinvey-javascript-sdk-core/build/rack/rack');
+
+var _cache = require('kinvey-javascript-sdk-core/build/rack/middleware/cache');
+
+var _cache2 = require('./cache');
+
+var _serialize = require('kinvey-javascript-sdk-core/build/rack/middleware/serialize');
+
+var _http = require('./http');
+
+var _device = require('kinvey-javascript-sdk-core/build/utils/device');
+
+var _device2 = require('./device');
+
+var _popup = require('kinvey-javascript-sdk-core/build/utils/popup');
+
+var _popup2 = require('./popup');
+
+var _push = require('./push');
+
+// Swap Cache middleware
+var cacheRack = _rack.CacheRack.sharedInstance();
+cacheRack.swap(_cache.CacheMiddleware, new _cache2.CacheMiddleware());
+
+// Add Http middleware
+var networkRack = _rack.NetworkRack.sharedInstance();
+networkRack.useAfter(_serialize.SerializeMiddleware, new _http.HttpMiddleware());
+
+// Use Device Adapter
+_device.Device.use(new _device2.DeviceAdapter());
+
+// Use Popup Adapter
+_popup.Popup.use(new _popup2.PopupAdapter());
+
+// Add Push module
+_kinveyJavascriptSdkCore.Kinvey.Push = _push.Push;
+
+// Export
+module.exports = _kinveyJavascriptSdkCore.Kinvey;
+},{"./cache":1,"./device":3,"./http":4,"./popup":6,"./push":7,"kinvey-javascript-sdk-core":33,"kinvey-javascript-sdk-core/build/rack/middleware/cache":40,"kinvey-javascript-sdk-core/build/rack/middleware/serialize":42,"kinvey-javascript-sdk-core/build/rack/rack":48,"kinvey-javascript-sdk-core/build/utils/device":63,"kinvey-javascript-sdk-core/build/utils/popup":65}],6:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.PopupAdapter = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _utils = require('./utils');
+
+var _bind = require('lodash/bind');
+
+var _bind2 = _interopRequireDefault(_bind);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * @private
+ */
+
+var PopupAdapter = exports.PopupAdapter = function () {
+  function PopupAdapter() {
+    _classCallCheck(this, PopupAdapter);
+  }
+
+  _createClass(PopupAdapter, [{
+    key: 'open',
+    value: function open() {
+      var _this = this;
+
+      this.eventListeners = {
+        loadHandler: (0, _bind2.default)(this.loadHandler, this),
+        clickHandler: (0, _bind2.default)(this.clickHandler, this),
+        closeHandler: (0, _bind2.default)(this.closeHandler, this)
+      };
+
+      var promise = new Promise(function (resolve) {
+        _this.tiWebView = Titanium.UI.createWebView({
+          width: '100%',
+          height: '100%',
+          url: _this.url
+        });
+
+        _this.popup = Titanium.UI.createWindow({
+          backgroundColor: 'white',
+          barColor: '#000',
+          title: 'Mobile Identity Connect',
+          modal: true
+        });
+        _this.popup.add(_this.tiWebView);
+
+        if ((0, _utils.isiOS)()) {
+          _this.tiWin = Titanium.UI.createWindow({
+            backgroundColor: 'white',
+            barColor: '#e3e3e3',
+            title: 'Mobile Identity Connect'
+          });
+          _this.tiWin.add(_this.tiWebView);
+
+          _this.tiCloseButton = Titanium.UI.createButton({
+            title: 'Close',
+            style: Titanium.UI.iPhone.SystemButtonStyle.DONE
+          });
+          _this.tiWin.setLeftNavButton(_this.tiCloseButton);
+          _this.tiCloseButton.addEventListener('click', _this.eventListeners.clickHandler);
+
+          _this.popup = Titanium.UI.iOS.createNavigationWindow({
+            backgroundColor: 'white',
+            window: _this.tiWin,
+            modal: true
+          });
+        } else if ((0, _utils.isAndroid)()) {
+          _this.popup.addEventListener('androidback', _this.eventListeners.closeHandler);
+        }
+
+        _this.tiWebView.addEventListener('load', _this.eventListeners.loadHandler);
+        _this.tiWebView.addEventListener('error', _this.eventListeners.loadHandler);
+        _this.popup.addEventListener('close', _this.eventListeners.closeHandler);
+        _this.popup.open();
+        resolve(_this);
+      });
+      return promise;
+    }
+  }, {
+    key: 'close',
+    value: function close() {
+      var _this2 = this;
+
+      var promise = new Promise(function (resolve) {
+        _this2.popup.close();
+        resolve();
+      });
+      return promise;
+    }
+  }, {
+    key: 'loadHandler',
+    value: function loadHandler(event) {
+      this.emit('loaded', event.url);
+    }
+  }, {
+    key: 'clickHandler',
+    value: function clickHandler() {
+      this.close();
+    }
+  }, {
+    key: 'closeHandler',
+    value: function closeHandler() {
+      this.tiWebView.removeEventListener('load', this.eventListeners.loadHandler);
+      this.tiWebView.removeEventListener('error', this.eventListeners.loadHandler);
+      this.popup.removeEventListener('close', this.eventListeners.closeHandler);
+
+      if ((0, _utils.isiOS)()) {
+        this.tiCloseButton.removeEventListener('click', this.eventListeners.clickHandler);
+      } else if ((0, _utils.isAndroid)()) {
+        this.popup.close();
+        this.popup.removeEventListener('androidback', this.eventListeners.closeHandler);
+      }
+
+      this.emit('closed');
+    }
+  }]);
+
+  return PopupAdapter;
+}();
+},{"./utils":9,"lodash/bind":225}],7:[function(require,module,exports){
+(function (process){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Push = undefined;
+
+var _errors = require('kinvey-javascript-sdk-core/build/errors');
+
+var _events = require('events');
+
+var _network = require('kinvey-javascript-sdk-core/build/requests/network');
+
+var _datastore = require('kinvey-javascript-sdk-core/build/stores/datastore');
+
+var _enums = require('kinvey-javascript-sdk-core/build/enums');
+
+var _user = require('kinvey-javascript-sdk-core/build/user');
+
+var _client = require('kinvey-javascript-sdk-core/build/client');
+
+var _query = require('kinvey-javascript-sdk-core/build/query');
+
+var _utils = require('./utils');
+
+var _assign = require('lodash/assign');
+
+var _assign2 = _interopRequireDefault(_assign);
+
+var _url = require('url');
+
+var _url2 = _interopRequireDefault(_url);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
+var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+var deviceCollectionName = process.env.KINVEY_DEVICE_COLLECTION_NAME || 'kinvey_device';
+var emitter = new _events.EventEmitter();
+
+var Push = exports.Push = {
+  listeners: function listeners() {
+    return emitter.listeners(notificationEvent);
+  },
+  onNotification: function onNotification(listener) {
+    return emitter.on(notificationEvent, listener);
+  },
+  onceNotification: function onceNotification(listener) {
+    return emitter.once(notificationEvent, listener);
+  },
+  removeListener: function removeListener(listener) {
+    return emitter.removeListener(notificationEvent, listener);
+  },
+  removeAllListeners: function removeAllListeners() {
+    return emitter.removeAllListeners(notificationEvent);
+  },
+  init: function init() {
+    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    if (!(0, _utils.isiOS)() || !(0, _utils.isAndroid)()) {
+      return Promise.reject(new _errors.KinveyError('Kinvey currently only supports ' + 'push notifications on iOS and Android platforms.'));
+    }
+
+    options = (0, _assign2.default)({
+      android: {
+        senderID: undefined
+      },
+      ios: {
+        alert: true,
+        badge: true,
+        sound: true
+      },
+      force: false
+    }, options);
+
+    var promise = new Promise(function (resolve, reject) {
+      if ((0, _utils.isiOS)()) {
+        var version = Titanium.Platfrom.version;
+        if (version.split('.')[0] >= 8) {
+          Titanium.App.iOS.addEventListener('usernotificationsettings', function registerForPush() {
+            Titanium.App.iOS.removeEventListener('usernotificationsettings', registerForPush);
+            Titanium.Network.registerForPushNotifications({
+              success: function success(e) {
+                resolve(e.deviceToken);
+              },
+              error: function error(e) {
+                reject(new _errors.KinveyError('An error occurred registering this device ' + 'for push notifications.', e));
+              },
+              callback: function callback(data) {
+                Push.emit(notificationEvent, data);
+              }
+            });
+          });
+
+          var types = [];
+
+          if (options.ios.alert) {
+            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_ALERT);
+          }
+
+          if (options.ios.badge) {
+            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_BADGE);
+          }
+
+          if (options.ios.sound) {
+            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_SOUND);
+          }
+
+          Titanium.App.iOS.registerUserNotificationSettings({
+            types: types
+          });
+        } else {
+          var _types = [];
+
+          if (options.ios.alert) {
+            _types.push(Titanium.Network.NOTIFICATION_TYPE_ALERT);
+          }
+
+          if (options.ios.badge) {
+            _types.push(Titanium.Network.NOTIFICATION_TYPE_BADGE);
+          }
+
+          if (options.ios.sound) {
+            _types.push(Titanium.Network.NOTIFICATION_TYPE_SOUND);
+          }
+
+          Titanium.Network.registerForPushNotifications({
+            types: [Titanium.Network.NOTIFICATION_TYPE_ALERT, Titanium.Network.NOTIFICATION_TYPE_SOUND, Titanium.Network.NOTIFICATION_TYPE_BADGE],
+            success: function success(e) {
+              resolve(e.deviceToken);
+            },
+            error: function error(e) {
+              reject(new _errors.KinveyError('An error occurred registering this device for ' + 'push notifications.', e));
+            },
+            callback: function callback(data) {
+              Push.emit(notificationEvent, data);
+            }
+          });
+        }
+      } else if ((0, _utils.isAndroid)()) {
+        CloudPush.retrieveDeviceToken({
+          success: function success(e) {
+            resolve(e.deviceToken);
+          },
+          error: function error(e) {
+            reject(new _errors.KinveyError('An error occurred registering this device for ' + 'push notifications.', e));
+          }
+        });
+
+        CloudPush.addEventListener('callback', function (data) {
+          Push.emit(notificationEvent, data);
+        });
+      }
+    }).then(function (deviceId) {
+      if (!deviceId) {
+        throw new _errors.KinveyError('Unable to retrieve the device id to register this device for push notifications.');
+      }
+
+      var store = _datastore.DataStore.getInstance(deviceCollectionName, _datastore.DataStoreType.Sync);
+      return store.findById(deviceId).then(function (entity) {
+        if (options.force !== true && entity.registered) {
+          throw new _errors.KinveyError('Device is already registered. To force registration ' + 'please set options.force to true.');
+        }
+      }).then(function () {
+        var user = _user.User.getActiveUser();
+        var client = _client.Client.sharedInstance();
+        var request = new _network.NetworkRequest({
+          method: _enums.HttpMethod.POST,
+          authType: user ? _enums.AuthType.Session : _enums.AuthType.Master,
+          url: _url2.default.format({
+            protocol: client.protocol,
+            host: client.host,
+            pathname: '/' + pushNamespace + '/' + client.appKey + '/register-device'
+          }),
+          properties: options.properties,
+          data: {
+            platform: Titanium.Platfrom.osname,
+            framework: 'titanium',
+            deviceId: deviceId,
+            userId: user ? null : options.userId
+          },
+          timeout: options.timeout,
+          client: client
+        });
+        return request.execute();
+      }).then(function (response) {
+        return store.save({ _id: deviceId, registered: true }).then(function () {
+          return response.data;
+        });
+      });
+    });
+
+    return promise;
+  },
+  unregister: function unregister() {
+    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    if (!(0, _utils.isiOS)() || !(0, _utils.isAndroid)()) {
+      return Promise.reject(new _errors.KinveyError('Kinvey currently only supports ' + 'push notifications on iOS and Android platforms.'));
+    }
+
+    var store = _datastore.DataStore.getInstance(deviceCollectionName, _datastore.DataStoreType.Sync);
+    var query = new _query.Query();
+    query.equalsTo('registered', true);
+    var promise = store.find(query).then(function (data) {
+      if (data.length === 1) {
+        return data[0]._id;
+      }
+
+      return undefined;
+    }).then(function (deviceId) {
+      if (!deviceId) {
+        throw new _errors.KinveyError('This device has not been registered.');
+      }
+
+      var user = _user.User.getActiveUser();
+      var client = _client.Client.sharedInstance();
+      var request = new _network.NetworkRequest({
+        method: _enums.HttpMethod.POST,
+        authType: user ? _enums.AuthType.Session : _enums.AuthType.Master,
+        url: _url2.default.format({
+          protocol: client.protocol,
+          host: client.host,
+          pathname: '/' + pushNamespace + '/' + client.appKey + '/unregister-device'
+        }),
+        properties: options.properties,
+        data: {
+          platform: Titanium.Platfrom.osname,
+          framework: 'titanium',
+          deviceId: deviceId,
+          userId: user ? null : options.userId
+        },
+        timeout: options.timeout,
+        client: client
+      });
+      return request.execute().then(function (response) {
+        return store.removeById(deviceId).then(function () {
+          return response.data;
+        });
+      });
+    });
+
+    return promise;
+  }
+};
+}).call(this,require('_process'))
+},{"./utils":9,"_process":275,"events":17,"kinvey-javascript-sdk-core/build/client":29,"kinvey-javascript-sdk-core/build/enums":31,"kinvey-javascript-sdk-core/build/errors":32,"kinvey-javascript-sdk-core/build/query":37,"kinvey-javascript-sdk-core/build/requests/network":51,"kinvey-javascript-sdk-core/build/stores/datastore":56,"kinvey-javascript-sdk-core/build/user":62,"lodash/assign":224,"url":291}],8:[function(require,module,exports){
+(function (process){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.TitaniumDB = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _errors = require('kinvey-javascript-sdk-core/build/errors');
+
+var _map = require('lodash/map');
+
+var _map2 = _interopRequireDefault(_map);
+
+var _isArray = require('lodash/isArray');
+
+var _isArray2 = _interopRequireDefault(_isArray);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
+var dbCache = {};
+
+/**
+ * @private
+ */
+
+var TitaniumDB = exports.TitaniumDB = function () {
+  function TitaniumDB() {
+    var name = arguments.length <= 0 || arguments[0] === undefined ? 'kinvey' : arguments[0];
+
+    _classCallCheck(this, TitaniumDB);
+
+    this.name = name;
+  }
+
+  _createClass(TitaniumDB, [{
+    key: 'execute',
+    value: function execute(collection, query, parameters) {
+      var _this = this;
+
+      var db = dbCache[this.name];
+      var escapedCollection = '"' + collection + '"';
+      var isMulti = (0, _isArray2.default)(query);
+      query = isMulti ? query : [[query, parameters]];
+
+      var promise = new Promise(function (resolve, reject) {
+        try {
+          if (!db) {
+            db = Titanium.Database.open(_this.name);
+            dbCache[_this.name] = db;
+          }
+
+          // Start a transaction
+          db.execute('BEGIN TRANSACTION');
+
+          // Create the table if it does not exist yet
+          db.execute('CREATE TABLE IF NOT EXISTS ' + escapedCollection + ' ' + '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
+
+          // Execute queries
+          var response = (0, _map2.default)(query, function (parts) {
+            var sql = parts[0].replace('#{collection}', escapedCollection);
+            var cursor = db.execute(sql, parts[1]);
+            var response = { rowCount: db.getRowsAffected(), result: null };
+
+            if (cursor) {
+              response.result = [];
+
+              while (cursor.isValidRow()) {
+                var entity = JSON.parse(cursor.fieldByName('value'));
+                response.result.push(entity);
+                cursor.next();
+              }
+
+              cursor.close();
+            }
+
+            return response;
+          });
+
+          // Commit the transaction
+          db.execute('COMMIT TRANSACTION');
+
+          resolve(isMulti ? response : response.shift());
+        } catch (error) {
+          reject(new _errors.KinveyError(error.message));
+        }
+      });
+
+      return promise;
+    }
+  }, {
+    key: 'find',
+    value: function find(collection) {
+      var sql = 'SELECT value FROM #{collection}';
+      var promise = this.execute(collection, sql, []).then(function (response) {
+        return response.result;
+      }).catch(function (error) {
+        if (error instanceof _errors.NotFoundError) {
+          return [];
+        }
+
+        throw error;
+      });
+      return promise;
+    }
+  }, {
+    key: 'findById',
+    value: function findById(collection, id) {
+      var _this2 = this;
+
+      var sql = 'SELECT value FROM #{collection} WHERE key = ?';
+      var promise = this.execute(collection, sql, [id]).then(function (response) {
+        var entities = response.result;
+
+        if (entities.length === 0) {
+          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this2.name + ' webSQL database.'));
+        }
+
+        return entities[0];
+      });
+      return promise;
+    }
+  }, {
+    key: 'save',
+    value: function save(collection, entities) {
+      var queries = [];
+      entities = (0, _map2.default)(entities, function (entity) {
+        queries.push(['INSERT OR REPLACE INTO #{collection} (key, value) VALUES (?, ?)', [entity[idAttribute], JSON.stringify(entity)]]);
+
+        return entity;
+      });
+
+      var promise = this.execute(collection, queries, null).then(function () {
+        return entities;
+      });
+      return promise;
+    }
+  }, {
+    key: 'removeById',
+    value: function removeById(collection, id) {
+      var _this3 = this;
+
+      var promise = this.execute(collection, [['SELECT value FROM #{collection} WHERE key = ?', [id]], ['DELETE FROM #{collection} WHERE key = ?', [id]]], null).then(function (response) {
+        var entities = response[0].result;
+        var count = response[1].rowCount || entities.length;
+
+        if (count === 0) {
+          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
+        }
+
+        return {
+          count: 1,
+          entities: entities
+        };
+      });
+
+      return promise;
+    }
+  }], [{
+    key: 'isSupported',
+    value: function isSupported() {
+      return typeof Titanium.Database !== 'undefined';
+    }
+  }]);
+
+  return TitaniumDB;
+}();
+}).call(this,require('_process'))
+},{"_process":275,"kinvey-javascript-sdk-core/build/errors":32,"lodash/isArray":236,"lodash/map":256}],9:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.isiOS = isiOS;
+exports.isAndroid = isAndroid;
+exports.isMobileWeb = isMobileWeb;
+function isiOS() {
+  return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
+}
+
+function isAndroid() {
+  return Titanium.Platform.osname === 'android';
+}
+
+function isMobileWeb() {
+  return Titanium.Platform.name === 'mobileweb';
+}
+},{}],10:[function(require,module,exports){
 var querystring = require('querystring')
   , extend = require('extend')
   , url = require('url')
@@ -39,7 +1023,7 @@ function serialize(obj, prefix) {
   return str.join('&')
 }
 
-},{"extend":9,"querystring":260,"url":265}],2:[function(require,module,exports){
+},{"extend":18,"querystring":286,"url":291}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -263,8 +1247,7 @@ rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
 // https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{}],3:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 (function (global){
 /* Add Promise.all and Promise.race implementations. */
 'use strict';
@@ -688,8 +1671,7 @@ module.exports = function(
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"is-arguments":16}],4:[function(require,module,exports){
+},{"is-arguments":25}],13:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -1303,8 +2285,7 @@ require('./promise-extra.js')(
 module.exports = Promise;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"./promise-extra.js":3,"asap/raw":2}],5:[function(require,module,exports){
+},{"./promise-extra.js":12,"asap/raw":11}],14:[function(require,module,exports){
 'use strict'
 
 exports.toByteArray = toByteArray
@@ -1415,7 +2396,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],6:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (global){
 /*!
  * The buffer module from node.js, for the browser.
@@ -2875,15 +3856,14 @@ function blitBuffer (src, dst, offset, length) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"base64-js":5,"ieee754":13,"isarray":7}],7:[function(require,module,exports){
+},{"base64-js":14,"ieee754":22,"isarray":16}],16:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],8:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3183,7 +4163,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],9:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 var hasOwn = Object.prototype.hasOwnProperty;
 var toString = Object.prototype.toString;
 var undefined;
@@ -3265,7 +4245,7 @@ module.exports = function extend() {
 };
 
 
-},{}],10:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 /**
@@ -3341,7 +4321,7 @@ function createMap() {
 
 module.exports = MemoryCache;
 
-},{}],11:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var isFunction = require('is-function')
 
 module.exports = forEach
@@ -3389,7 +4369,7 @@ function forEachObject(object, iterator, context) {
     }
 }
 
-},{"is-function":17}],12:[function(require,module,exports){
+},{"is-function":26}],21:[function(require,module,exports){
 (function (process){
 /*! hellojs v1.12.0 | (c) 2012-2016 Andrew Dodson | MIT https://adodson.com/hello.js/LICENSE */
 // ES5 Object.create
@@ -9222,8 +10202,7 @@ if (typeof module === 'object' && module.exports) {
 }
 
 }).call(this,require('_process'))
-
-},{"_process":249}],13:[function(require,module,exports){
+},{"_process":275}],22:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -9309,7 +10288,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],14:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var idbModules = {  // jshint ignore:line
     util: {
         cleanInterface: false
@@ -12651,7 +13630,7 @@ var idbModules = {  // jshint ignore:line
 }(window, idbModules));
 
 
-},{}],15:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -12676,7 +13655,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],16:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict';
 
 var toStr = Object.prototype.toString;
@@ -12705,7 +13684,7 @@ isStandardArguments.isLegacyArguments = isLegacyArguments; // for tests
 
 module.exports = supportsStandardArguments ? isStandardArguments : isLegacyArguments;
 
-},{}],17:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = isFunction
 
 var toString = Object.prototype.toString
@@ -12722,34 +13701,7 @@ function isFunction (fn) {
       fn === window.prompt))
 };
 
-},{}],18:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.Log = undefined;
-
-var _loglevel = require('loglevel');
-
-var _loglevel2 = _interopRequireDefault(_loglevel);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var originalFactory = _loglevel2.default.methodFactory;
-
-_loglevel2.default.methodFactory = function methodFactory(methodName, logLevel, loggerName) {
-  var rawMethod = originalFactory(methodName, logLevel, loggerName);
-
-  return function log(message) {
-    rawMethod('Kinvey: ' + message);
-  };
-};
-
-_loglevel2.default.setLevel(_loglevel2.default.levels.ERROR);
-exports.Log = _loglevel2.default;
-
-},{"loglevel":246}],19:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -12962,9 +13914,9 @@ var Acl = exports.Acl = function () {
   return Acl;
 }();
 
-}).call(this,require('_process'))
 
-},{"./errors":24,"_process":249,"lodash/isPlainObject":222}],20:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./errors":32,"_process":275,"lodash/isPlainObject":247}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -13071,32 +14023,29 @@ var Aggregation = function () {
 
       (0, _forEach2.default)(entities, function (entity) {
         var group = {};
+        var entityNames = Object.keys(entity);
 
-        for (var name in entity) {
-          if (entity.hasOwnProperty(name)) {
-            group[name] = entity[name];
-          }
-        }
+        (0, _forEach2.default)(entityNames, function (name) {
+          group[name] = entity[name];
+        });
 
         var key = JSON.stringify(group);
         if (!groups[key]) {
           groups[key] = group;
+          var attributes = Object.keys(aggregation.initial);
 
-          for (var attr in aggregation.initial) {
-            if (aggregation.initial.hasOwnProperty(attr)) {
-              groups[key][attr] = aggregation.initial[attr];
-            }
-          }
+          (0, _forEach2.default)(attributes, function (attr) {
+            groups[key][attr] = aggregation.initial[attr];
+          });
         }
 
         aggregation.reduce(entity, groups[key]);
       });
 
-      for (var segment in groups) {
-        if (groups.hasOwnProperty(segment)) {
-          response.push(groups[segment]);
-        }
-      }
+      var segments = Object.keys(groups);
+      (0, _forEach2.default)(segments, function (segment) {
+        response.push(groups[segment]);
+      });
 
       return response;
     }
@@ -13141,6 +14090,7 @@ var Aggregation = function () {
       aggregation.initial({ result: 0 });
       aggregation.reduce(function (doc, out) {
         out.result += 1;
+        return out;
       });
       return aggregation;
     }
@@ -13199,7 +14149,8 @@ var Aggregation = function () {
 
 exports.Aggregation = Aggregation;
 
-},{"./errors":24,"./query":29,"lodash/assign":200,"lodash/forEach":206,"lodash/isFunction":216,"lodash/isObject":220,"lodash/isString":224,"lodash/result":238}],21:[function(require,module,exports){
+
+},{"./errors":32,"./query":37,"lodash/assign":224,"lodash/forEach":231,"lodash/isFunction":241,"lodash/isObject":245,"lodash/isString":249,"lodash/result":264}],29:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13441,9 +14392,9 @@ var Client = exports.Client = function () {
   return Client;
 }();
 
-}).call(this,require('_process'))
 
-},{"./errors":24,"_process":249,"local-storage":59,"lodash/assign":200,"lodash/isString":224,"url":265}],22:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./errors":32,"_process":275,"local-storage":67,"lodash/assign":224,"lodash/isString":249,"url":291}],30:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13530,9 +14481,9 @@ var Command = exports.Command = function () {
   return Command;
 }();
 
-}).call(this,require('_process'))
 
-},{"./client":21,"./enums":23,"./errors":24,"_process":249,"lodash/isString":224}],23:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./client":29,"./enums":31,"./errors":32,"_process":275,"lodash/isString":249}],31:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -13618,7 +14569,8 @@ var StatusCode = {
 Object.freeze(StatusCode);
 exports.StatusCode = StatusCode;
 
-},{}],24:[function(require,module,exports){
+
+},{}],32:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -13673,7 +14625,8 @@ var NetworkConnectionError = exports.NetworkConnectionError = Error.extend('Netw
 var NotFoundError = exports.NotFoundError = Error.extend('NotFoundError');
 var NoResponseError = exports.NoResponseError = Error.extend('NoResponseError');
 
-},{"lodash/isFunction":216,"util":268}],25:[function(require,module,exports){
+
+},{"lodash/isFunction":241,"util":294}],33:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13683,6 +14636,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.Kinvey = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _aggregation = require('./aggregation');
 
@@ -13774,7 +14731,6 @@ var Kinvey = function () {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
   }]);
@@ -13789,16 +14745,16 @@ Kinvey.DataStore = _datastore.DataStore;
 Kinvey.DataStoreType = _enums.DataStoreType;
 Kinvey.Log = _log.Log;
 Kinvey.Metadata = _metadata.Metadata;
-Kinvey.Promise = Promise;
+Kinvey.Promise = _babybird2.default;
 Kinvey.Query = _query.Query;
 Kinvey.SocialIdentity = _enums.SocialIdentity;
 Kinvey.Sync = _sync.Sync;
 Kinvey.User = _user.User;
 exports.Kinvey = Kinvey;
 
-}).call(this,require('_process'))
 
-},{"./aggregation":20,"./client":21,"./command":22,"./enums":23,"./log":26,"./metadata":27,"./query":29,"./requests/network":43,"./stores/datastore":48,"./sync":53,"./user":54,"_process":249,"url":265}],26:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./aggregation":28,"./client":29,"./command":30,"./enums":31,"./log":34,"./metadata":35,"./query":37,"./requests/network":51,"./stores/datastore":56,"./sync":61,"./user":62,"_process":275,"babybird":13,"url":291}],34:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -13825,7 +14781,8 @@ _loglevel2.default.methodFactory = function methodFactory(methodName, logLevel, 
 _loglevel2.default.setLevel(_loglevel2.default.levels.ERROR);
 exports.Log = _loglevel2.default;
 
-},{"loglevel":246}],27:[function(require,module,exports){
+
+},{"loglevel":272}],35:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13925,9 +14882,9 @@ var Metadata = exports.Metadata = function () {
   return Metadata;
 }();
 
-}).call(this,require('_process'))
 
-},{"./errors":24,"_process":249,"lodash/isPlainObject":222}],28:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./errors":32,"_process":275,"lodash/isPlainObject":247}],36:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -13937,6 +14894,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.MobileIdentityConnect = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _enums = require('./enums');
 
@@ -13997,23 +14958,21 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
 
       var clientId = this.client.appKey;
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         if (authorizationGrant === _enums.AuthorizationGrant.AuthorizationCodeLoginPage) {
           // Step 1: Request a code
           return _this.requestCodeWithPopup(clientId, redirectUri, options);
         } else if (authorizationGrant === _enums.AuthorizationGrant.AuthorizationCodeAPI) {
           // Step 1a: Request a temp login url
           return _this.requestTempLoginUrl(clientId, redirectUri, options).then(function (url) {
-            // Step 1b: Request a code
             return _this.requestCodeWithUrl(url, clientId, redirectUri, options);
-          });
+          }); // Step 1b: Request a code
         }
 
         throw new _errors.KinveyError('The authorization grant ' + authorizationGrant + ' is unsupported. ' + 'Please use a supported authorization grant.');
       }).then(function (code) {
-        // Step 3: Request a token
         return _this.requestToken(code, clientId, redirectUri, options);
-      });
+      }); // Step 3: Request a token
 
       return promise;
     }
@@ -14062,7 +15021,7 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
 
       var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var pathname = '/';
 
         if (options.version) {
@@ -14087,7 +15046,7 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
         }));
         return popup.open();
       }).then(function (popup) {
-        return new Promise(function (resolve, reject) {
+        var promise = new _babybird2.default(function (resolve, reject) {
           var redirected = false;
 
           function loadHandler(loadedUrl) {
@@ -14110,6 +15069,7 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
           popup.on('loaded', loadHandler);
           popup.on('closed', closeHandler);
         });
+        return promise;
       });
 
       return promise;
@@ -14119,7 +15079,7 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
     value: function requestCodeWithUrl(loginUrl, clientId, redirectUri) {
       var options = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _network.NetworkRequest({
           method: _enums.HttpMethod.POST,
           headers: {
@@ -14225,9 +15185,9 @@ var MobileIdentityConnect = exports.MobileIdentityConnect = function () {
   return MobileIdentityConnect;
 }();
 
-}).call(this,require('_process'))
 
-},{"./client":21,"./enums":23,"./errors":24,"./requests/network":43,"./utils/popup":57,"_process":249,"lodash/isString":224,"path":248,"url":265}],29:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./client":29,"./enums":31,"./errors":32,"./requests/network":51,"./utils/popup":65,"_process":275,"babybird":13,"lodash/isString":249,"path":274,"url":291}],37:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -14268,6 +15228,10 @@ var _isObject2 = _interopRequireDefault(_isObject);
 var _isRegExp = require('lodash/isRegExp');
 
 var _isRegExp2 = _interopRequireDefault(_isRegExp);
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -14453,25 +15417,37 @@ var Query = function () {
   }, {
     key: 'and',
     value: function and() {
-      return this.join('$and', Array.prototype.slice.call(arguments));
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      return this.join('$and', Array.prototype.slice.call(args));
     }
   }, {
     key: 'nor',
     value: function nor() {
-      if (this.parent && this.parent.filter.$and) {
-        return this.parent.nor.apply(this.parent, arguments);
+      for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+        args[_key2] = arguments[_key2];
       }
 
-      return this.join('$nor', Array.prototype.slice.call(arguments));
+      if (this.parent && this.parent.filter.$and) {
+        return this.parent.nor.apply(this.parent, args);
+      }
+
+      return this.join('$nor', Array.prototype.slice.call(args));
     }
   }, {
     key: 'or',
     value: function or() {
-      if (this.parent) {
-        return this.parent.or.apply(this.parent, arguments);
+      for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+        args[_key3] = arguments[_key3];
       }
 
-      return this.join('$or', Array.prototype.slice.call(arguments));
+      if (this.parent) {
+        return this.parent.or.apply(this.parent, args);
+      }
+
+      return this.join('$or', Array.prototype.slice.call(args));
     }
   }, {
     key: 'exists',
@@ -14733,6 +15709,8 @@ var Query = function () {
   }, {
     key: 'join',
     value: function join(operator, queries) {
+      var _this2 = this;
+
       var _this = this;
       var currentQuery = {};
 
@@ -14740,9 +15718,9 @@ var Query = function () {
       // the `filter` for joining. The eventual return function will be the
       // current query.
       queries = queries.map(function (query) {
-        if (!(query instanceof PrivateQuery)) {
+        if (!(query instanceof Query)) {
           if ((0, _isObject2.default)(query)) {
-            query = new PrivateQuery(query);
+            query = new Query(query);
           } else {
             throw new Error('query argument must be of type: Kinvey.Query[] or Object[].');
           }
@@ -14755,7 +15733,7 @@ var Query = function () {
       // This query is the right-hand side of the join expression, and will be
       // returned to allow for a fluent interface.
       if (queries.length === 0) {
-        _this = new PrivateQuery();
+        _this = new Query();
         queries = [_this.toJSON().filter];
         _this.parent = this; // Required for operator precedence and `toJSON`.
       }
@@ -14763,12 +15741,11 @@ var Query = function () {
       // Join operators operate on the top-level of `filter`. Since the `toJSON`
       // magic requires `filter` to be passed by reference, we cannot simply re-
       // assign `filter`. Instead, empty it without losing the reference.
-      for (var member in this._filter) {
-        if (this._filter.hasOwnProperty(member)) {
-          currentQuery[member] = this._filter[member];
-          delete this._filter[member];
-        }
-      }
+      var members = Object.keys(this._filter);
+      (0, _forEach2.default)(members, function (member) {
+        currentQuery[member] = _this2._filter[member];
+        delete _this2._filter[member];
+      });
 
       // `currentQuery` is the left-hand side query. Join with `queries`.
       this._filter[operator] = [currentQuery].concat(queries);
@@ -14789,7 +15766,7 @@ var Query = function () {
   }, {
     key: '_process',
     value: function _process(data) {
-      var _this2 = this;
+      var _this3 = this;
 
       if (data) {
         var _ret = function () {
@@ -14799,17 +15776,18 @@ var Query = function () {
           }
 
           // Apply the query
-          var json = _this2.toJSON();
+          var json = _this3.toJSON();
           data = (0, _sift2.default)(json.filter, data);
 
           // Remove fields
           if (json.fields && json.fields.length > 0) {
             data = data.map(function (item) {
-              for (var key in item) {
-                if (item.hasOwnProperty(key) && json.fields.indexOf(key) === -1) {
+              var keys = Object.keys(item);
+              (0, _forEach2.default)(keys, function (key) {
+                if (json.fields.indexOf(key) === -1) {
                   delete item[key];
                 }
-              }
+              });
 
               return item;
             });
@@ -14817,31 +15795,32 @@ var Query = function () {
 
           // Sorting.
           data = data.sort(function (a, b) {
-            for (var field in json.sort) {
-              if (json.sort.hasOwnProperty(field)) {
-                // Find field in objects.
-                var aField = (0, _object.nested)(a, field);
-                var bField = (0, _object.nested)(b, field);
+            var fields = Object.keys(json.sort);
+            (0, _forEach2.default)(fields, function (field) {
+              // Find field in objects.
+              var aField = (0, _object.nested)(a, field);
+              var bField = (0, _object.nested)(b, field);
 
-                // Elements which do not contain the field should always be sorted
-                // lower.
-                if (aField && !bField) {
-                  return -1;
-                }
-
-                if (bField && !aField) {
-                  return 1;
-                }
-
-                // Sort on the current field. The modifier adjusts the sorting order
-                // (ascending (-1), or descending(1)). If the fields are equal,
-                // continue sorting based on the next field (if any).
-                if (aField !== bField) {
-                  var modifier = json.sort[field]; // 1 or -1.
-                  return (aField < bField ? -1 : 1) * modifier;
-                }
+              // Elements which do not contain the field should always be sorted
+              // lower.
+              if (aField && !bField) {
+                return -1;
               }
-            }
+
+              if (bField && !aField) {
+                return 1;
+              }
+
+              // Sort on the current field. The modifier adjusts the sorting order
+              // (ascending (-1), or descending(1)). If the fields are equal,
+              // continue sorting based on the next field (if any).
+              if (aField !== bField) {
+                var modifier = json.sort[field]; // 1 or -1.
+                return (aField < bField ? -1 : 1) * modifier;
+              }
+
+              return 0;
+            });
 
             return 0;
           });
@@ -14895,7 +15874,8 @@ var Query = function () {
 
 exports.Query = Query;
 
-},{"./utils/object":56,"lodash/assign":200,"lodash/isArray":211,"lodash/isNumber":219,"lodash/isObject":220,"lodash/isRegExp":223,"lodash/isString":224,"sift":261}],30:[function(require,module,exports){
+
+},{"./utils/object":64,"lodash/assign":224,"lodash/forEach":231,"lodash/isArray":236,"lodash/isNumber":244,"lodash/isObject":245,"lodash/isRegExp":248,"lodash/isString":249,"sift":287}],38:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -14949,7 +15929,8 @@ var AsciiTree = exports.AsciiTree = {
   }
 };
 
-},{}],31:[function(require,module,exports){
+
+},{}],39:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -14964,16 +15945,6 @@ var _babybird = require('babybird');
 var _babybird2 = _interopRequireDefault(_babybird);
 
 var _asciiTree = require('./asciiTree');
-
-var _errors = require('../errors');
-
-var _urlPattern = require('url-pattern');
-
-var _urlPattern2 = _interopRequireDefault(_urlPattern);
-
-var _url = require('url');
-
-var _url2 = _interopRequireDefault(_url);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -15046,19 +16017,11 @@ var KinveyMiddleware = exports.KinveyMiddleware = function (_Middleware) {
     key: 'handle',
     value: function handle(request) {
       return new _babybird2.default(function (resolve, reject) {
-        if (request) {
-          var pathname = _url2.default.parse(request.url).pathname;
-          var pattern = new _urlPattern2.default('(/:namespace)(/)(:appKey)(/)(:collection)(/)(:id)(/)');
-          var matches = pattern.match(pathname) || {};
-          return resolve({
-            namespace: matches.namespace,
-            appKey: matches.appKey,
-            collection: matches.collection,
-            id: matches.id
-          });
+        if (!request) {
+          return reject(new Error('Request is null. Please provide a valid request.', request));
         }
 
-        reject(new _errors.KinveyError('Request is null. Please provide a valid request.', request));
+        return resolve(request);
       });
     }
   }]);
@@ -15066,7 +16029,8 @@ var KinveyMiddleware = exports.KinveyMiddleware = function (_Middleware) {
   return KinveyMiddleware;
 }(Middleware);
 
-},{"../errors":24,"./asciiTree":30,"babybird":4,"url":265,"url-pattern":264}],32:[function(require,module,exports){
+
+},{"./asciiTree":38,"babybird":13}],40:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -15084,6 +16048,16 @@ var _db = require('../persistence/db');
 
 var _enums = require('../../enums');
 
+var _urlPattern = require('url-pattern');
+
+var _urlPattern2 = _interopRequireDefault(_urlPattern);
+
+var _url = require('url');
+
+var _url2 = _interopRequireDefault(_url);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -15098,7 +16072,7 @@ var CacheMiddleware = exports.CacheMiddleware = function (_KinveyMiddleware) {
   _inherits(CacheMiddleware, _KinveyMiddleware);
 
   function CacheMiddleware() {
-    var adapters = arguments.length <= 0 || arguments[0] === undefined ? [_db.DBAdapter.Memory] : arguments[0];
+    var adapters = arguments.length <= 0 || arguments[0] === undefined ? [_db.DBAdapter.IndexedDB, _db.DBAdapter.WebSQL, _db.DBAdapter.LocalStorage, _db.DBAdapter.Memory] : arguments[0];
 
     _classCallCheck(this, CacheMiddleware);
 
@@ -15113,7 +16087,12 @@ var CacheMiddleware = exports.CacheMiddleware = function (_KinveyMiddleware) {
     value: function handle(request) {
       var _this2 = this;
 
-      return _get(Object.getPrototypeOf(CacheMiddleware.prototype), 'handle', this).call(this, request).then(function (_ref) {
+      return _get(Object.getPrototypeOf(CacheMiddleware.prototype), 'handle', this).call(this, request).then(function () {
+        var pathname = _url2.default.parse(request.url).pathname;
+        var pattern = new _urlPattern2.default('(/:namespace)(/)(:appKey)(/)(:collection)(/)(:id)(/)');
+
+        var _ref = pattern.match(pathname) || {};
+
         var appKey = _ref.appKey;
         var collection = _ref.collection;
         var id = _ref.id;
@@ -15168,7 +16147,8 @@ var CacheMiddleware = exports.CacheMiddleware = function (_KinveyMiddleware) {
   return CacheMiddleware;
 }(_middleware.KinveyMiddleware);
 
-},{"../../enums":23,"../middleware":31,"../persistence/db":39}],33:[function(require,module,exports){
+
+},{"../../enums":31,"../middleware":39,"../persistence/db":47,"url":291,"url-pattern":290}],41:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -15231,7 +16211,8 @@ var ParseMiddleware = exports.ParseMiddleware = function (_KinveyMiddleware) {
   return ParseMiddleware;
 }(_middleware.KinveyMiddleware);
 
-},{"../middleware":31}],34:[function(require,module,exports){
+
+},{"../middleware":39}],42:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -15245,6 +16226,12 @@ var _createClass = function () { function defineProperties(target, props) { for 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
 var _middleware = require('../middleware');
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -15277,16 +16264,17 @@ var SerializeMiddleware = exports.SerializeMiddleware = function (_KinveyMiddlew
           if (contentType.indexOf('application/json') === 0) {
             request.data = JSON.stringify(request.data);
           } else if (contentType.indexOf('application/x-www-form-urlencoded') === 0) {
-            var data = request.data;
-            var str = [];
+            (function () {
+              var data = request.data;
+              var str = [];
+              var keys = Object.keys(data);
 
-            for (var p in data) {
-              if (data.hasOwnProperty(p)) {
-                str.push(global.encodeURIComponent(p) + '=' + global.encodeURIComponent(data[p]));
-              }
-            }
+              (0, _forEach2.default)(keys, function (key) {
+                str.push(global.encodeURIComponent(key) + '=' + global.encodeURIComponent(data[key]));
+              });
 
-            request.data = str.join('&');
+              request.data = str.join('&');
+            })();
           }
         }
 
@@ -15298,9 +16286,9 @@ var SerializeMiddleware = exports.SerializeMiddleware = function (_KinveyMiddlew
   return SerializeMiddleware;
 }(_middleware.KinveyMiddleware);
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"../middleware":31}],35:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../middleware":39,"lodash/forEach":231}],43:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -15310,6 +16298,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.IndexedDB = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _errors = require('../../../errors');
 
@@ -15384,6 +16376,7 @@ var IndexedDB = exports.IndexedDB = function () {
 
       if (db) {
         var containsCollection = (0, _isFunction2.default)(db.objectStoreNames.contains) ? db.objectStoreNames.contains(collection) : db.objectStoreNames.indexOf(collection) !== -1;
+
         if (containsCollection) {
           try {
             var mode = write ? TransactionMode.ReadWrite : TransactionMode.ReadOnly;
@@ -15452,7 +16445,7 @@ var IndexedDB = exports.IndexedDB = function () {
         // to empty the queue upon success and failure. Set the `force` flag so
         // all but the current transaction remain queued.
         var wrap = function wrap(done) {
-          return function (arg) {
+          var callbackFn = function callbackFn(arg) {
             done(arg);
 
             // Switch flag
@@ -15469,9 +16462,10 @@ var IndexedDB = exports.IndexedDB = function () {
               });
             }
           };
+          return callbackFn;
         };
 
-        _this.openTransaction(collection, write, wrap(success), wrap(error), true);
+        return _this.openTransaction(collection, write, wrap(success), wrap(error), true);
       };
 
       request.onblocked = function () {
@@ -15481,22 +16475,24 @@ var IndexedDB = exports.IndexedDB = function () {
       request.onerror = function (e) {
         error(new _errors.KinveyError('Unable to open the ' + _this.name + ' indexedDB database. ' + ('Received the error code ' + e.target.errorCode + '.')));
       };
+
+      return null;
     }
   }, {
     key: 'find',
     value: function find(collection) {
       var _this2 = this;
 
-      var promise = new Promise(function (resolve, reject) {
+      var promise = new _babybird2.default(function (resolve, reject) {
         if (!collection) {
           return reject(new _errors.KinveyError('A collection was not provided.'));
         }
 
-        _this2.openTransaction(collection, false, function (store) {
+        return _this2.openTransaction(collection, false, function (store) {
           var request = store.openCursor();
           var response = [];
 
-          request.onsuccess = function onSuccess(e) {
+          request.onsuccess = function (e) {
             var cursor = e.target.result;
 
             if (cursor) {
@@ -15504,7 +16500,7 @@ var IndexedDB = exports.IndexedDB = function () {
               return cursor.continue();
             }
 
-            resolve(response);
+            return resolve(response);
           };
 
           request.onerror = function (e) {
@@ -15515,7 +16511,7 @@ var IndexedDB = exports.IndexedDB = function () {
             return resolve([]);
           }
 
-          reject(error);
+          return reject(error);
         });
       });
 
@@ -15526,7 +16522,7 @@ var IndexedDB = exports.IndexedDB = function () {
     value: function findById(collection, id) {
       var _this3 = this;
 
-      var promise = new Promise(function (resolve, reject) {
+      var promise = new _babybird2.default(function (resolve, reject) {
         _this3.openTransaction(collection, false, function (store) {
           var request = store.get(id);
 
@@ -15537,7 +16533,7 @@ var IndexedDB = exports.IndexedDB = function () {
               return resolve(entity);
             }
 
-            reject(new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' indexedDB database.')));
+            return reject(new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' indexedDB database.')));
           };
 
           request.onerror = function (e) {
@@ -15548,7 +16544,7 @@ var IndexedDB = exports.IndexedDB = function () {
             return reject(new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' indexedDB database.')));
           }
 
-          reject(error);
+          return reject(error);
         });
       });
 
@@ -15567,10 +16563,10 @@ var IndexedDB = exports.IndexedDB = function () {
       }
 
       if (entities.length === 0) {
-        return Promise.resolve(entities);
+        return _babybird2.default.resolve(entities);
       }
 
-      var promise = new Promise(function (resolve, reject) {
+      var promise = new _babybird2.default(function (resolve, reject) {
         _this4.openTransaction(collection, true, function (store) {
           var request = store.transaction;
 
@@ -15595,7 +16591,7 @@ var IndexedDB = exports.IndexedDB = function () {
     value: function removeById(collection, id) {
       var _this5 = this;
 
-      var promise = new Promise(function (resolve, reject) {
+      var promise = new _babybird2.default(function (resolve, reject) {
         _this5.openTransaction(collection, true, function (store) {
           var request = store.transaction;
           var doc = store.get(id);
@@ -15606,7 +16602,7 @@ var IndexedDB = exports.IndexedDB = function () {
               return reject(new _errors.NotFoundError('An entity with id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this5.name + ' indexedDB database.')));
             }
 
-            resolve({
+            return resolve({
               count: 1,
               entities: [doc.result]
             });
@@ -15623,16 +16619,16 @@ var IndexedDB = exports.IndexedDB = function () {
   }], [{
     key: 'isSupported',
     value: function isSupported() {
-      return indexedDB ? true : false;
+      return indexedDB !== undefined;
     }
   }]);
 
   return IndexedDB;
 }();
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"../../../errors":24,"indexeddbshim":14,"lodash/forEach":206,"lodash/isArray":211,"lodash/isFunction":216,"lodash/isString":224}],36:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../../../errors":32,"babybird":13,"indexeddbshim":23,"lodash/forEach":231,"lodash/isArray":236,"lodash/isFunction":241,"lodash/isString":249}],44:[function(require,module,exports){
 (function (process,global){
 'use strict';
 
@@ -15642,6 +16638,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.LocalStorage = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _errors = require('../../../errors');
 
@@ -15656,6 +16656,10 @@ var _merge2 = _interopRequireDefault(_merge);
 var _values = require('lodash/values');
 
 var _values2 = _interopRequireDefault(_values);
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -15682,7 +16686,7 @@ var LocalStorage = exports.LocalStorage = function () {
     value: function find(collection) {
       var _this = this;
 
-      return Promise.resolve().then(function () {
+      return _babybird2.default.resolve().then(function () {
         var data = localStorage.getItem('' + _this.name + collection);
 
         try {
@@ -15723,17 +16727,16 @@ var LocalStorage = exports.LocalStorage = function () {
       return this.find(collection).then(function (existingEntities) {
         var existingEntitiesById = (0, _keyBy2.default)(existingEntities, idAttribute);
         var entitiesById = (0, _keyBy2.default)(entities, idAttribute);
+        var existingEntityIds = Object.keys(existingEntitiesById);
 
-        for (var id in existingEntitiesById) {
-          if (existingEntitiesById.hasOwnProperty(id)) {
-            var existingEntity = existingEntitiesById[id];
-            var entity = entitiesById[id];
+        (0, _forEach2.default)(existingEntityIds, function (id) {
+          var existingEntity = existingEntitiesById[id];
+          var entity = entitiesById[id];
 
-            if (entity) {
-              entitiesById[id] = (0, _merge2.default)(existingEntity, entity);
-            }
+          if (entity) {
+            entitiesById[id] = (0, _merge2.default)(existingEntity, entity);
           }
-        }
+        });
 
         localStorage.setItem('' + _this3.name + collection, JSON.stringify((0, _values2.default)(entitiesById)));
         return entities;
@@ -15782,9 +16785,9 @@ var LocalStorage = exports.LocalStorage = function () {
   return LocalStorage;
 }();
 
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"../../../errors":24,"_process":249,"lodash/keyBy":227,"lodash/merge":232,"lodash/values":244}],37:[function(require,module,exports){
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../../../errors":32,"_process":275,"babybird":13,"lodash/forEach":231,"lodash/keyBy":252,"lodash/merge":258,"lodash/values":270}],45:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -15794,6 +16797,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.Memory = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _promiseQueue = require('promise-queue');
 
@@ -15808,6 +16815,10 @@ var _fastMemoryCache2 = _interopRequireDefault(_fastMemoryCache);
 var _keyBy = require('lodash/keyBy');
 
 var _keyBy2 = _interopRequireDefault(_keyBy);
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
 
 var _values = require('lodash/values');
 
@@ -15832,7 +16843,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
 var caches = [];
 
-_promiseQueue2.default.configure(Promise);
+_promiseQueue2.default.configure(_babybird2.default);
 var queue = new _promiseQueue2.default(1, Infinity);
 
 /**
@@ -15866,7 +16877,7 @@ var Memory = exports.Memory = function () {
       var _this = this;
 
       return queue.add(function () {
-        return Promise.resolve().then(function () {
+        var promise = _babybird2.default.resolve().then(function () {
           var entities = _this.cache.get('' + _this.name + collection);
 
           if (entities) {
@@ -15885,6 +16896,7 @@ var Memory = exports.Memory = function () {
 
           return entities;
         });
+        return promise;
       });
     }
   }, {
@@ -15917,18 +16929,17 @@ var Memory = exports.Memory = function () {
       }
 
       if (entities.length === 0) {
-        return Promise.resolve(entities);
+        return _babybird2.default.resolve(entities);
       }
 
       return this.find(collection).then(function (existingEntities) {
         existingEntities = (0, _keyBy2.default)(existingEntities, idAttribute);
         entities = (0, _keyBy2.default)(entities, idAttribute);
+        var entityIds = Object.keys(entities);
 
-        for (var id in entities) {
-          if (entities.hasOwnProperty(id)) {
-            existingEntities[id] = entities[id];
-          }
-        }
+        (0, _forEach2.default)(entityIds, function (id) {
+          existingEntities[id] = entities[id];
+        });
 
         _this3.cache.set('' + _this3.name + collection, JSON.stringify((0, _values2.default)(existingEntities)));
         entities = (0, _values2.default)(entities);
@@ -15967,9 +16978,9 @@ var Memory = exports.Memory = function () {
   return Memory;
 }();
 
-}).call(this,require('_process'))
 
-},{"../../../errors":24,"_process":249,"fast-memory-cache":10,"lodash/find":204,"lodash/isArray":211,"lodash/isString":224,"lodash/keyBy":227,"lodash/values":244,"promise-queue":250}],38:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../../../errors":32,"_process":275,"babybird":13,"fast-memory-cache":19,"lodash/find":229,"lodash/forEach":231,"lodash/isArray":236,"lodash/isString":249,"lodash/keyBy":252,"lodash/values":270,"promise-queue":276}],46:[function(require,module,exports){
 (function (process,global){
 'use strict';
 
@@ -15979,6 +16990,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.WebSQL = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _errors = require('../../../errors');
 
@@ -16050,7 +17065,7 @@ var WebSQL = exports.WebSQL = function () {
         dbCache[this.name] = db;
       }
 
-      var promise = new Promise(function (resolve, reject) {
+      var promise = new _babybird2.default(function (resolve, reject) {
         var writeTxn = write || !(0, _isFunction2.default)(db.readTransaction);
         db[writeTxn ? 'transaction' : 'readTransaction'](function (tx) {
           if (write && !isMaster) {
@@ -16099,12 +17114,12 @@ var WebSQL = exports.WebSQL = function () {
           var query = 'SELECT name AS value from #{collection} WHERE type = ? AND name = ?';
           var parameters = ['table', collection];
 
-          _this.openTransaction(masterCollectionName, query, parameters).then(function (response) {
+          return _this.openTransaction(masterCollectionName, query, parameters).then(function (response) {
             if (response.result.length === 0) {
               return reject(new _errors.NotFoundError('The ' + collection + ' collection was not found on ' + ('the ' + _this.name + ' webSQL database.')));
             }
 
-            reject(new _errors.KinveyError('Unable to open a transaction for the ' + collection + ' ' + ('collection on the ' + _this.name + ' webSQL database.')));
+            return reject(new _errors.KinveyError('Unable to open a transaction for the ' + collection + ' ' + ('collection on the ' + _this.name + ' webSQL database.')));
           }).catch(function (err) {
             reject(new _errors.KinveyError('Unable to open a transaction for the ' + collection + ' ' + ('collection on the ' + _this.name + ' webSQL database.'), err));
           });
@@ -16168,7 +17183,7 @@ var WebSQL = exports.WebSQL = function () {
       var promise = this.openTransaction(collection, [['SELECT value FROM #{collection} WHERE key = ?', [id]], ['DELETE FROM #{collection} WHERE key = ?', [id]]], null, true).then(function (response) {
         var entities = response[0].result;
         var count = response[1].rowCount;
-        count = count ? count : entities.length;
+        count = count !== undefined ? count : entities.length;
 
         if (count === 0) {
           throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
@@ -16185,16 +17200,16 @@ var WebSQL = exports.WebSQL = function () {
   }], [{
     key: 'isSupported',
     value: function isSupported() {
-      return webSQL ? true : false;
+      return webSQL !== undefined;
     }
   }]);
 
   return WebSQL;
 }();
 
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{"../../../errors":24,"_process":249,"lodash/forEach":206,"lodash/isArray":211,"lodash/isFunction":216,"lodash/isString":224,"lodash/map":231}],39:[function(require,module,exports){
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../../../errors":32,"_process":275,"babybird":13,"lodash/forEach":231,"lodash/isArray":236,"lodash/isFunction":241,"lodash/isString":249,"lodash/map":256}],47:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -16204,6 +17219,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.DB = exports.DBAdapter = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _query = require('../../query');
 
@@ -16314,6 +17333,8 @@ var DB = exports.DB = function () {
         default:
           _log.Log.warn('The ' + adapter + ' adapter is is not recognized.');
       }
+
+      return true;
     });
 
     if (!this.adapter) {
@@ -16371,7 +17392,6 @@ var DB = exports.DB = function () {
       var promise = this.find(collection, query).then(function (entities) {
         return entities.length;
       });
-
       return promise;
     }
   }, {
@@ -16395,7 +17415,7 @@ var DB = exports.DB = function () {
     key: 'findById',
     value: function findById(collection, id) {
       if (!(0, _isString2.default)(id)) {
-        return Promise.reject(new _errors.KinveyError('id must be a string', id));
+        return _babybird2.default.reject(new _errors.KinveyError('id must be a string', id));
       }
 
       var promise = this.adapter.findById(collection, id);
@@ -16411,7 +17431,7 @@ var DB = exports.DB = function () {
       var singular = false;
 
       if (!entities) {
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       if (!(0, _isArray2.default)(entities)) {
@@ -16460,10 +17480,9 @@ var DB = exports.DB = function () {
         var promises = entities.map(function (entity) {
           return _this3.removeById(collection, entity[idAttribute]);
         });
-
-        return Promise.all(promises);
+        return _babybird2.default.all(promises);
       }).then(function (responses) {
-        return (0, _reduce2.default)(responses, function (result, response) {
+        var result = (0, _reduce2.default)(responses, function (result, response) {
           result.count += response.count;
           result.entities = result.entities.concat(response.entities);
           return result;
@@ -16471,6 +17490,7 @@ var DB = exports.DB = function () {
           count: 0,
           entities: []
         });
+        return result;
       });
 
       return promise;
@@ -16479,14 +17499,14 @@ var DB = exports.DB = function () {
     key: 'removeById',
     value: function removeById(collection, id) {
       if (!id) {
-        return Promise.resolve({
+        return _babybird2.default.resolve({
           count: 0,
           entities: []
         });
       }
 
       if (!(0, _isString2.default)(id)) {
-        return Promise.reject(new _errors.KinveyError('id must be a string', id));
+        return _babybird2.default.reject(new _errors.KinveyError('id must be a string', id));
       }
 
       var promise = this.adapter.removeById(collection, id);
@@ -16502,9 +17522,9 @@ var DB = exports.DB = function () {
   return DB;
 }();
 
-}).call(this,require('_process'))
 
-},{"../../aggregation":20,"../../errors":24,"../../log":26,"../../query":29,"./adapters/indexeddb":35,"./adapters/localstorage":36,"./adapters/memory":37,"./adapters/websql":38,"_process":249,"lodash/forEach":206,"lodash/isArray":211,"lodash/isString":224,"lodash/map":231,"lodash/reduce":236,"lodash/result":238}],40:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../../aggregation":28,"../../errors":32,"../../log":34,"../../query":37,"./adapters/indexeddb":43,"./adapters/localstorage":44,"./adapters/memory":45,"./adapters/websql":46,"_process":275,"babybird":13,"lodash/forEach":231,"lodash/isArray":236,"lodash/isString":249,"lodash/map":256,"lodash/reduce":262,"lodash/result":264}],48:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -16515,6 +17535,10 @@ exports.NetworkRack = exports.CacheRack = exports.KinveyRack = exports.Rack = un
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _middleware = require('./middleware');
 
@@ -16527,6 +17551,10 @@ var _serialize = require('./middleware/serialize');
 var _findIndex = require('lodash/findIndex');
 
 var _findIndex2 = _interopRequireDefault(_findIndex);
+
+var _reduce = require('lodash/reduce');
+
+var _reduce2 = _interopRequireDefault(_reduce);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -16669,30 +17697,14 @@ var Rack = exports.Rack = function (_KinveyMiddleware) {
     key: 'execute',
     value: function execute(request) {
       if (!request) {
-        return Promise.reject(new Error('Request is null. Please provide a valid request.'));
+        return _babybird2.default.reject(new Error('Request is null. Please provide a valid request.'));
       }
 
-      return this._execute(0, this.middlewares, request);
-    }
-  }, {
-    key: '_execute',
-    value: function _execute(index, middlewares, request) {
-      var _this2 = this;
-
-      if (index < -1 || index >= middlewares.length) {
-        throw new Error('Index ' + index + ' is out of bounds.');
-      }
-
-      var middleware = middlewares[index];
-      return middleware.handle(request).then(function (response) {
-        index = index + 1;
-
-        if (index < middlewares.length) {
-          return _this2._execute(index, middlewares, response);
-        }
-
-        return response;
-      });
+      return (0, _reduce2.default)(this.middlewares, function (promise, middleware) {
+        return promise.then(function (request) {
+          return middleware.handle(request);
+        });
+      }, _babybird2.default.resolve(request));
     }
   }, {
     key: 'cancel',
@@ -16763,10 +17775,10 @@ var CacheRack = exports.CacheRack = function (_KinveyRack) {
 
     _classCallCheck(this, CacheRack);
 
-    var _this4 = _possibleConstructorReturn(this, Object.getPrototypeOf(CacheRack).call(this, name));
+    var _this3 = _possibleConstructorReturn(this, Object.getPrototypeOf(CacheRack).call(this, name));
 
-    _this4.use(new _cache.CacheMiddleware());
-    return _this4;
+    _this3.use(new _cache.CacheMiddleware());
+    return _this3;
   }
 
   _createClass(CacheRack, null, [{
@@ -16799,11 +17811,11 @@ var NetworkRack = exports.NetworkRack = function (_KinveyRack2) {
 
     _classCallCheck(this, NetworkRack);
 
-    var _this5 = _possibleConstructorReturn(this, Object.getPrototypeOf(NetworkRack).call(this, name));
+    var _this4 = _possibleConstructorReturn(this, Object.getPrototypeOf(NetworkRack).call(this, name));
 
-    _this5.use(new _serialize.SerializeMiddleware());
-    _this5.use(new _parse.ParseMiddleware());
-    return _this5;
+    _this4.use(new _serialize.SerializeMiddleware());
+    _this4.use(new _parse.ParseMiddleware());
+    return _this4;
   }
 
   _createClass(NetworkRack, null, [{
@@ -16823,7 +17835,8 @@ var NetworkRack = exports.NetworkRack = function (_KinveyRack2) {
   return NetworkRack;
 }(KinveyRack);
 
-},{"./middleware":31,"./middleware/cache":32,"./middleware/parse":33,"./middleware/serialize":34,"lodash/findIndex":205}],41:[function(require,module,exports){
+
+},{"./middleware":39,"./middleware/cache":40,"./middleware/parse":41,"./middleware/serialize":42,"babybird":13,"lodash/findIndex":230,"lodash/reduce":262}],49:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -16832,9 +17845,15 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.DeltaFetchRequest = undefined;
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _request = require('./request');
 
@@ -16865,6 +17884,10 @@ var _result2 = _interopRequireDefault(_result);
 var _values = require('lodash/values');
 
 var _values2 = _interopRequireDefault(_values);
+
+var _forEach = require('lodash/forEach');
+
+var _forEach2 = _interopRequireDefault(_forEach);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -16911,10 +17934,6 @@ var DeltaFetchRequest = exports.DeltaFetchRequest = function (_KinveyRequest) {
           client: _this2.client
         });
         return localRequest.execute();
-      }).then(function (response) {
-        if (!response.isSuccess()) {
-          throw response.error;
-        }
       }).catch(function (error) {
         if (error instanceof _errors.NotFoundError) {
           return new _response.Response({
@@ -16925,88 +17944,106 @@ var DeltaFetchRequest = exports.DeltaFetchRequest = function (_KinveyRequest) {
 
         throw error;
       }).then(function (cacheResponse) {
-        var cacheDocuments = (0, _keyBy2.default)(cacheResponse.data, idAttribute);
-        var query = new _query3.Query((0, _result2.default)(_this2.query, 'toJSON', _this2.query));
-        query.fields([idAttribute, kmdAttribute]);
+        if (cacheResponse.data.length > 0) {
+          var _ret = function () {
+            var cacheDocuments = (0, _keyBy2.default)(cacheResponse.data, idAttribute);
+            var query = new _query3.Query((0, _result2.default)(_this2.query, 'toJSON', _this2.query));
+            query.fields([idAttribute, kmdAttribute]);
+            var networkRequest = new _network.NetworkRequest({
+              method: _enums.HttpMethod.GET,
+              url: _this2.url,
+              headers: _this2.headers,
+              auth: _this2.auth,
+              query: query,
+              timeout: _this2.timeout,
+              client: _this2.client
+            });
+
+            return {
+              v: networkRequest.execute().then(function (networkResponse) {
+                var networkDocuments = (0, _keyBy2.default)(networkResponse.data, idAttribute);
+                var deltaSet = networkDocuments;
+                var cacheDocumentIds = Object.keys(cacheDocuments);
+
+                (0, _forEach2.default)(cacheDocumentIds, function (id) {
+                  var cacheDocument = cacheDocuments[id];
+                  var networkDocument = networkDocuments[id];
+
+                  if (networkDocument) {
+                    if (networkDocument[kmdAttribute] && cacheDocument[kmdAttribute] && networkDocument[kmdAttribute][lmtAttribute] === cacheDocument[kmdAttribute][lmtAttribute]) {
+                      delete deltaSet[id];
+                    } else {
+                      delete cacheDocuments[id];
+                    }
+                  } else {
+                    delete cacheDocuments[id];
+                  }
+                });
+
+                var deltaSetIds = Object.keys(deltaSet);
+                var promises = [];
+                var i = 0;
+
+                while (i < deltaSetIds.length) {
+                  var _query = new _query3.Query((0, _result2.default)(_this2.query, 'toJSON', _this2.query));
+                  var ids = deltaSetIds.slice(i, deltaSetIds.length > maxIdsPerRequest + i ? maxIdsPerRequest : deltaSetIds.length);
+                  _query.contains(idAttribute, ids);
+                  var _networkRequest = new _network.NetworkRequest({
+                    method: _enums.HttpMethod.GET,
+                    url: _this2.url,
+                    headers: _this2.headers,
+                    auth: _this2.auth,
+                    query: _query,
+                    timeout: _this2.timeout,
+                    client: _this2.client
+                  });
+
+                  var _promise = _networkRequest.execute();
+                  promises.push(_promise);
+                  i += maxIdsPerRequest;
+                }
+
+                return _babybird2.default.all(promises).then(function (responses) {
+                  var initialResponse = new _response.Response({
+                    statusCode: _enums.StatusCode.Ok,
+                    data: []
+                  });
+                  return (0, _reduce2.default)(responses, function (result, response) {
+                    if (response.isSuccess()) {
+                      result.addHeaders(response.headers);
+                      result.data = result.data.concat(response.data);
+                    }
+
+                    return result;
+                  }, initialResponse);
+                }).then(function (response) {
+                  response.data = response.data.concat((0, _values2.default)(cacheDocuments));
+
+                  if (_this2.query) {
+                    var _query2 = new _query3.Query((0, _result2.default)(_this2.query, 'toJSON', _this2.query));
+                    _query2.skip(0).limit(0);
+                    response.data = _query2._process(response.data);
+                  }
+
+                  return response;
+                });
+              })
+            };
+          }();
+
+          if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
+        }
+
         var networkRequest = new _network.NetworkRequest({
           method: _enums.HttpMethod.GET,
           url: _this2.url,
           headers: _this2.headers,
           auth: _this2.auth,
-          query: query,
+          query: _this2.query,
           timeout: _this2.timeout,
           client: _this2.client
         });
-
-        return networkRequest.execute().then(function (networkResponse) {
-          var networkDocuments = (0, _keyBy2.default)(networkResponse.data, idAttribute);
-          var deltaSet = networkDocuments;
-
-          for (var id in cacheDocuments) {
-            if (cacheDocuments.hasOwnProperty(id)) {
-              var cacheDocument = cacheDocuments[id];
-              var networkDocument = networkDocuments[id];
-
-              if (networkDocument) {
-                if (networkDocument[kmdAttribute] && cacheDocument[kmdAttribute] && networkDocument[kmdAttribute][lmtAttribute] === cacheDocument[kmdAttribute][lmtAttribute]) {
-                  delete deltaSet[id];
-                } else {
-                  delete cacheDocuments[id];
-                }
-              } else {
-                delete cacheDocuments[id];
-              }
-            }
-          }
-
-          var deltaSetIds = Object.keys(deltaSet);
-          var promises = [];
-          var i = 0;
-
-          while (i < deltaSetIds.length) {
-            var _query = new _query3.Query();
-            var ids = deltaSetIds.slice(i, deltaSetIds.length > maxIdsPerRequest + i ? maxIdsPerRequest : deltaSetIds.length);
-            _query.contains(idAttribute, ids);
-            var _networkRequest = new _network.NetworkRequest({
-              method: _enums.HttpMethod.GET,
-              url: _this2.url,
-              headers: _this2.headers,
-              auth: _this2.auth,
-              query: _query,
-              timeout: _this2.timeout,
-              client: _this2.client
-            });
-
-            var _promise = _networkRequest.execute();
-            promises.push(_promise);
-            i += maxIdsPerRequest;
-          }
-
-          return Promise.all(promises).then(function (responses) {
-            var initialResponse = new _response.Response({
-              statusCode: _enums.StatusCode.Ok,
-              data: []
-            });
-            return (0, _reduce2.default)(responses, function (result, response) {
-              if (response.isSuccess()) {
-                result.addHeaders(response.headers);
-                result.data = result.data.concat(response.data);
-              }
-
-              return result;
-            }, initialResponse);
-          }).then(function (response) {
-            response.data = response.data.concat((0, _values2.default)(cacheDocuments));
-
-            if (_this2.query) {
-              var _query2 = new _query3.Query((0, _result2.default)(_this2.query, 'toJSON', _this2.query));
-              _query2.skip(0).limit(0);
-              response.data = _query2._process(response.data);
-            }
-
-            return response;
-          });
-        });
+        return networkRequest.execute();
       });
 
       return promise;
@@ -17016,9 +18053,9 @@ var DeltaFetchRequest = exports.DeltaFetchRequest = function (_KinveyRequest) {
   return DeltaFetchRequest;
 }(_request.KinveyRequest);
 
-}).call(this,require('_process'))
 
-},{"../enums":23,"../errors":24,"../query":29,"./local":42,"./network":43,"./request":45,"./response":46,"_process":249,"lodash/keyBy":227,"lodash/reduce":236,"lodash/result":238,"lodash/values":244}],42:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../enums":31,"../errors":32,"../query":37,"./local":50,"./network":51,"./request":53,"./response":54,"_process":275,"babybird":13,"lodash/forEach":231,"lodash/keyBy":252,"lodash/reduce":262,"lodash/result":264,"lodash/values":270}],50:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -17026,9 +18063,17 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.LocalRequest = undefined;
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
 var _request = require('./request');
 
 var _rack = require('../rack/rack');
+
+var _errors = require('../errors');
+
+var _response = require('./response');
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -17052,10 +18097,54 @@ var LocalRequest = exports.LocalRequest = function (_KinveyRequest) {
     return _this;
   }
 
+  _createClass(LocalRequest, [{
+    key: 'execute',
+    value: function execute() {
+      var _this2 = this;
+
+      var promise = _get(Object.getPrototypeOf(LocalRequest.prototype), 'execute', this).call(this).then(function () {
+        return _this2.rack.execute(_this2);
+      }).then(function (response) {
+        if (!response) {
+          throw new _errors.NoResponseError();
+        }
+
+        if (!(response instanceof _response.Response)) {
+          return new _response.Response({
+            statusCode: response.statusCode,
+            headers: response.headers,
+            data: response.data
+          });
+        }
+
+        return response;
+      }).then(function (response) {
+        if (!response.isSuccess()) {
+          throw response.error;
+        }
+
+        return response;
+      });
+
+      return promise;
+    }
+  }, {
+    key: 'cancel',
+    value: function cancel() {
+      var _this3 = this;
+
+      var promise = _get(Object.getPrototypeOf(LocalRequest.prototype), 'cancel', this).call(this).then(function () {
+        return _this3.rack.cancel();
+      });
+      return promise;
+    }
+  }]);
+
   return LocalRequest;
 }(_request.KinveyRequest);
 
-},{"../rack/rack":40,"./request":45}],43:[function(require,module,exports){
+
+},{"../errors":32,"../rack/rack":48,"./request":53,"./response":54}],51:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -17077,6 +18166,8 @@ var _rack = require('../rack/rack');
 var _errors = require('../errors');
 
 var _enums = require('../enums');
+
+var _response = require('./response');
 
 var _url = require('url');
 
@@ -17117,7 +18208,29 @@ var NetworkRequest = exports.NetworkRequest = function (_KinveyRequest) {
     value: function execute() {
       var _this2 = this;
 
-      var promise = _get(Object.getPrototypeOf(NetworkRequest.prototype), 'execute', this).call(this).catch(function (error) {
+      var promise = _get(Object.getPrototypeOf(NetworkRequest.prototype), 'execute', this).call(this).then(function () {
+        return _this2.rack.execute(_this2);
+      }).then(function (response) {
+        if (!response) {
+          throw new _errors.NoResponseError();
+        }
+
+        if (!(response instanceof _response.Response)) {
+          return new _response.Response({
+            statusCode: response.statusCode,
+            headers: response.headers,
+            data: response.data
+          });
+        }
+
+        return response;
+      }).then(function (response) {
+        if (!response.isSuccess()) {
+          throw response.error;
+        }
+
+        return response;
+      }).catch(function (error) {
         if (error instanceof _errors.InvalidCredentialsError && _this2.automaticallyRefreshAuthToken) {
           var _ret = function () {
             _this2.automaticallyRefreshAuthToken = false;
@@ -17179,7 +18292,8 @@ var NetworkRequest = exports.NetworkRequest = function (_KinveyRequest) {
                   _this2.client.setActiveSocialIdentity({
                     identity: activeSocialIdentity.identity,
                     redirectUri: activeSocialIdentity.redirectUri,
-                    token: response.data[socialIdentityAttribute][activeSocialIdentity.identity]
+                    token: response.data[socialIdentityAttribute][activeSocialIdentity.identity],
+                    client: activeSocialIdentity.client
                   });
 
                   // Execute the original request
@@ -17205,14 +18319,24 @@ var NetworkRequest = exports.NetworkRequest = function (_KinveyRequest) {
 
       return promise;
     }
+  }, {
+    key: 'cancel',
+    value: function cancel() {
+      var _this3 = this;
+
+      var promise = _get(Object.getPrototypeOf(NetworkRequest.prototype), 'cancel', this).call(this).then(function () {
+        return _this3.rack.cancel();
+      });
+      return promise;
+    }
   }]);
 
   return NetworkRequest;
 }(_request.KinveyRequest);
 
-}).call(this,require('_process'))
 
-},{"../enums":23,"../errors":24,"../rack/rack":40,"./request":45,"_process":249,"url":265}],44:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../enums":31,"../errors":32,"../rack/rack":48,"./request":53,"./response":54,"_process":275,"url":291}],52:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -17363,15 +18487,19 @@ var RequestProperties = exports.RequestProperties = function () {
      * @return {RequestProperties} The request properties instance.
      */
     ,
-    set: function set(version) {
-      version = Array.prototype.slice.call(arguments, 1);
-      var major = version[0];
+    set: function set() {
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      var version = Array.prototype.slice.call(args, 1);
+      var major = args[0];
       var minor = version[1];
       var patch = version[2];
       var appVersion = '';
 
       if (major) {
-        appVersion = (major + '').trim();
+        appVersion = ('' + major).trim();
       }
 
       if (minor) {
@@ -17390,7 +18518,8 @@ var RequestProperties = exports.RequestProperties = function () {
   return RequestProperties;
 }();
 
-},{"../errors":24,"lodash/isPlainObject":222}],45:[function(require,module,exports){
+
+},{"../errors":32,"lodash/isPlainObject":247}],53:[function(require,module,exports){
 (function (process,Buffer){
 'use strict';
 
@@ -17405,17 +18534,17 @@ var _get = function get(object, property, receiver) { if (object === null) objec
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
+
 var _enums = require('../enums');
 
 var _device = require('../utils/device');
 
 var _properties = require('./properties');
 
-var _errors = require('../errors');
-
 var _rack = require('../rack/rack');
-
-var _response = require('./response');
 
 var _client = require('../client');
 
@@ -17681,7 +18810,7 @@ var Request = exports.Request = function () {
   }, {
     key: 'isExecuting',
     value: function isExecuting() {
-      return this.executing ? true : false;
+      return this.executing === true;
     }
   }, {
     key: 'execute',
@@ -17689,15 +18818,15 @@ var Request = exports.Request = function () {
       var _this2 = this;
 
       if (this.executing) {
-        return Promise.reject(new Error('Unable to execute the request. The request is already executing.'));
+        return _babybird2.default.reject(new Error('Unable to execute the request. The request is already executing.'));
       }
 
-      this.executing = Promise.resolve().then(function (response) {
+      this.executing = _babybird2.default.resolve().then(function (response) {
         _this2.executing = false;
         return response;
-      }).catch(function (err) {
+      }).catch(function (error) {
         _this2.executing = false;
-        throw err;
+        throw error;
       });
 
       return this.executing;
@@ -17833,46 +18962,20 @@ var KinveyRequest = exports.KinveyRequest = function (_Request) {
   _createClass(KinveyRequest, [{
     key: 'execute',
     value: function execute() {
-      var _this4 = this;
-
       var authorizationHeader = this.authorizationHeader;
 
       if (authorizationHeader) {
         this.addHeader(authorizationHeader);
       }
 
-      var promise = _get(Object.getPrototypeOf(KinveyRequest.prototype), 'execute', this).call(this).then(function () {
-        return _this4.rack.execute(_this4);
-      }).then(function (response) {
-        if (!response) {
-          throw new _errors.NoResponseError();
-        }
-
-        if (!(response instanceof _response.Response)) {
-          return new _response.Response({
-            statusCode: response.statusCode,
-            headers: response.headers,
-            data: response.data
-          });
-        }
-
-        return response;
-      }).then(function (response) {
-        if (!response.isSuccess()) {
-          throw response.error;
-        }
-
-        return response;
-      }).catch(function (error) {
-        throw error;
-      });
-
+      var promise = _get(Object.getPrototypeOf(KinveyRequest.prototype), 'execute', this).call(this);
       return promise;
     }
   }, {
     key: 'cancel',
     value: function cancel() {
-      this.rack.cancel();
+      var promise = _get(Object.getPrototypeOf(KinveyRequest.prototype), 'cancel', this).call(this);
+      return promise;
     }
   }, {
     key: 'toJSON',
@@ -17936,11 +19039,10 @@ var KinveyRequest = exports.KinveyRequest = function (_Request) {
         }
       }
 
-      for (var key in queryString) {
-        if (queryString.hasOwnProperty(key)) {
-          queryString[key] = (0, _isString2.default)(queryString[key]) ? queryString[key] : JSON.stringify(queryString[key]);
-        }
-      }
+      var keys = Object.keys(queryString);
+      (0, _forEach2.default)(keys, function (key) {
+        queryString[key] = (0, _isString2.default)(queryString[key]) ? queryString[key] : JSON.stringify(queryString[key]);
+      });
 
       if ((0, _isEmpty2.default)(queryString)) {
         return url;
@@ -18007,9 +19109,9 @@ var KinveyRequest = exports.KinveyRequest = function (_Request) {
   return KinveyRequest;
 }(Request);
 
-}).call(this,require('_process'),require("buffer").Buffer)
 
-},{"../client":21,"../enums":23,"../errors":24,"../rack/rack":40,"../utils/device":55,"../utils/string":58,"./properties":44,"./response":46,"_process":249,"append-query":1,"buffer":6,"lodash/assign":200,"lodash/forEach":206,"lodash/isEmpty":215,"lodash/isPlainObject":222,"lodash/isString":224,"lodash/result":238,"qs":254}],46:[function(require,module,exports){
+}).call(this,require('_process'),require("buffer").Buffer)
+},{"../client":29,"../enums":31,"../rack/rack":48,"../utils/device":63,"../utils/string":66,"./properties":52,"_process":275,"append-query":10,"babybird":13,"buffer":15,"lodash/assign":224,"lodash/forEach":231,"lodash/isEmpty":240,"lodash/isPlainObject":247,"lodash/isString":249,"lodash/result":264,"qs":280}],54:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -18192,7 +19294,8 @@ var Response = exports.Response = function () {
   return Response;
 }();
 
-},{"../enums":23,"../errors":24,"lodash/assign":200,"lodash/forEach":206,"lodash/isPlainObject":222,"lodash/isString":224}],47:[function(require,module,exports){
+
+},{"../enums":31,"../errors":32,"lodash/assign":224,"lodash/forEach":231,"lodash/isPlainObject":247,"lodash/isString":249}],55:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -18206,6 +19309,10 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _networkstore = require('./networkstore');
 
@@ -18252,6 +19359,10 @@ var _isArray2 = _interopRequireDefault(_isArray);
 var _keyBy = require('lodash/keyBy');
 
 var _keyBy2 = _interopRequireDefault(_keyBy);
+
+var _differenceBy = require('lodash/differenceBy');
+
+var _differenceBy2 = _interopRequireDefault(_differenceBy);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -18336,10 +19447,10 @@ var CacheStore = function (_NetworkStore) {
       }, options);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.GET,
           url: _url2.default.format({
@@ -18353,9 +19464,9 @@ var CacheStore = function (_NetworkStore) {
           client: _this2.client
         });
         return request.execute();
-      }).then(function (response) {
+      }).then(function (cacheResponse) {
         var result = {
-          cache: response.data
+          cache: cacheResponse.data
         };
 
         result.networkPromise = _this2.syncCount().then(function (count) {
@@ -18382,7 +19493,8 @@ var CacheStore = function (_NetworkStore) {
               }),
               properties: options.properties,
               query: query,
-              timeout: options.timeout
+              timeout: options.timeout,
+              client: _this2.client
             });
             return request.execute().then(function (response) {
               return response.data;
@@ -18390,8 +19502,27 @@ var CacheStore = function (_NetworkStore) {
           }
 
           return _get(Object.getPrototypeOf(CacheStore.prototype), 'find', _this2).call(_this2, query, options);
-        }).then(function (data) {
-          return _this2._cache(data);
+        }).then(function (networkEntities) {
+          var removedEntities = (0, _differenceBy2.default)(cacheResponse.data, networkEntities, idAttribute);
+          var removeEntityIds = Object.keys((0, _keyBy2.default)(removedEntities, idAttribute));
+          var removeQuery = new _query.Query();
+          removeQuery.contains(idAttribute, removeEntityIds);
+
+          var request = new _local.LocalRequest({
+            method: _enums.HttpMethod.DELETE,
+            url: _url2.default.format({
+              protocol: _this2.client.protocol,
+              host: _this2.client.host,
+              pathname: _this2._pathname
+            }),
+            properties: options.properties,
+            query: removeQuery,
+            timeout: options.timeout,
+            client: _this2.client
+          });
+          return request.execute().then(function () {
+            return _this2._cache(networkEntities);
+          });
         });
 
         return result;
@@ -18436,10 +19567,10 @@ var CacheStore = function (_NetworkStore) {
       }, options);
 
       if (!(aggregation instanceof _aggregation.Aggregation)) {
-        return Promise.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
       }
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.GET,
           url: _url2.default.format({
@@ -18516,10 +19647,10 @@ var CacheStore = function (_NetworkStore) {
       }, options);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.GET,
           url: _url2.default.format({
@@ -18589,7 +19720,7 @@ var CacheStore = function (_NetworkStore) {
 
       if (!id) {
         _log.Log.warn('No id was provided to retrieve an entity.', id);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Retrieving the entity in the ' + this.name + ' collection with id = ' + id + '.');
@@ -18599,7 +19730,7 @@ var CacheStore = function (_NetworkStore) {
         useDeltaFetch: true
       }, options);
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.GET,
           url: _url2.default.format({
@@ -18708,12 +19839,12 @@ var CacheStore = function (_NetworkStore) {
 
       if (!entity) {
         _log.Log.warn('No entity was provided to be saved.', entity);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Saving the entity(s) to the ' + this.name + ' collection.', entity);
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.POST,
           url: _url2.default.format({
@@ -18738,7 +19869,7 @@ var CacheStore = function (_NetworkStore) {
 
         return request.execute();
       }).then(function (response) {
-        return _this6._sync(response.data, options).then(function () {
+        var promise = _this6._sync(response.data, options).then(function () {
           var data = (0, _isArray2.default)(response.data) ? response.data : [response.data];
           var ids = Object.keys((0, _keyBy2.default)(data, idAttribute));
           var query = new _query.Query().contains(idAttribute, ids);
@@ -18746,6 +19877,7 @@ var CacheStore = function (_NetworkStore) {
         }).then(function () {
           return response.data;
         });
+        return promise;
       });
 
       promise.then(function (response) {
@@ -18781,10 +19913,10 @@ var CacheStore = function (_NetworkStore) {
       _log.Log.debug('Removing the entities in the ' + this.name + ' collection.', query);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.DELETE,
           url: _url2.default.format({
@@ -18799,12 +19931,13 @@ var CacheStore = function (_NetworkStore) {
         });
         return request.execute();
       }).then(function (response) {
-        return _this7._sync(response.data.entities, options).then(function () {
+        var promise = _this7._sync(response.data.entities, options).then(function () {
           var query = new _query.Query().contains(idAttribute, []);
           return _this7.push(query, options);
         }).then(function () {
           return response.data;
         });
+        return promise;
       });
 
       promise.then(function (response) {
@@ -18837,12 +19970,12 @@ var CacheStore = function (_NetworkStore) {
 
       if (!id) {
         _log.Log.warn('No id was provided to be removed.', id);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Removing an entity in the ' + this.name + ' collection with id = ' + id + '.');
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.DELETE,
           url: _url2.default.format({
@@ -18857,12 +19990,13 @@ var CacheStore = function (_NetworkStore) {
         });
         return request.execute();
       }).then(function (response) {
-        return _this8._sync(response.data.entities, options).then(function () {
+        var promise = _this8._sync(response.data.entities, options).then(function () {
           var query = new _query.Query().contains(idAttribute, [id]);
           return _this8.push(query, options);
         }).then(function () {
           return response.data;
         });
+        return promise;
       });
 
       promise.then(function (response) {
@@ -18902,10 +20036,10 @@ var CacheStore = function (_NetworkStore) {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _local.LocalRequest({
           method: _enums.HttpMethod.GET,
           url: _url2.default.format({
@@ -18952,7 +20086,7 @@ var CacheStore = function (_NetworkStore) {
           });
         });
 
-        return Promise.all(promises).then(function () {
+        return _babybird2.default.all(promises).then(function () {
           var saved = (0, _map2.default)(save, function (entity) {
             var metadata = entities[entity[idAttribute]];
             var isLocalEntity = (0, _object.nested)(entity, kmdAttribute + '.local');
@@ -19021,11 +20155,9 @@ var CacheStore = function (_NetworkStore) {
                         error: new _errors.KinveyError('Expected count to be 1 but instead it was ' + result.count + ' ' + ('when trying to remove entity with _id ' + originalId + '.'))
                       };
                     });
-                  }).catch(function (err) {
-                    return {
-                      _id: originalId,
-                      error: err
-                    };
+                  }).catch(function (error) {
+                    var result = { _id: originalId, error: error };
+                    return result;
                   })
                 };
               }();
@@ -19124,7 +20256,7 @@ var CacheStore = function (_NetworkStore) {
             });
           });
 
-          return Promise.all([Promise.all(saved), Promise.all(removed)]);
+          return _babybird2.default.all([_babybird2.default.all(saved), _babybird2.default.all(removed)]);
         }).then(function (results) {
           var savedResults = results[0];
           var removedResults = results[1];
@@ -19222,7 +20354,6 @@ var CacheStore = function (_NetworkStore) {
       }).then(function (result) {
         return result.network;
       });
-
       return promise;
     }
 
@@ -19255,14 +20386,15 @@ var CacheStore = function (_NetworkStore) {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       var promise = this.push(null, options).then(function (pushResponse) {
-        return _this11.pull(query, options).then(function (pullResponse) {
-          return {
+        var promise = _this11.pull(query, options).then(function (pullResponse) {
+          var result = {
             push: pushResponse,
             pull: pullResponse
           };
+          return result;
         });
+        return promise;
       });
-
       return promise;
     }
 
@@ -19294,7 +20426,7 @@ var CacheStore = function (_NetworkStore) {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _local.LocalRequest({
@@ -19348,6 +20480,7 @@ var CacheStore = function (_NetworkStore) {
           pathname: this._pathname
         }),
         properties: options.properties,
+        data: entities,
         timeout: options.timeout,
         client: this.client
       });
@@ -19355,7 +20488,6 @@ var CacheStore = function (_NetworkStore) {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
 
@@ -19378,11 +20510,11 @@ var CacheStore = function (_NetworkStore) {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (!this.name) {
-        return Promise.reject(new _errors.KinveyError('Unable to add entities to the sync table for a store with no name.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Unable to add entities to the sync table for a store with no name.'));
       }
 
       if (!entities) {
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       var request = new _local.LocalRequest({
@@ -19468,9 +20600,9 @@ var CacheStore = function (_NetworkStore) {
 
 exports.CacheStore = CacheStore;
 
-}).call(this,require('_process'))
 
-},{"../aggregation":20,"../enums":23,"../errors":24,"../log":26,"../query":29,"../requests/deltafetch":41,"../requests/local":42,"../requests/network":43,"../requests/response":46,"../utils/object":56,"./networkstore":50,"_process":249,"lodash/assign":200,"lodash/forEach":206,"lodash/isArray":211,"lodash/keyBy":227,"lodash/map":231,"url":265}],48:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../aggregation":28,"../enums":31,"../errors":32,"../log":34,"../query":37,"../requests/deltafetch":49,"../requests/local":50,"../requests/network":51,"../requests/response":54,"../utils/object":64,"./networkstore":58,"_process":275,"babybird":13,"lodash/assign":224,"lodash/differenceBy":227,"lodash/forEach":231,"lodash/isArray":236,"lodash/keyBy":252,"lodash/map":256,"url":291}],56:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -19550,7 +20682,8 @@ var DataStore = exports.DataStore = function () {
   return DataStore;
 }();
 
-},{"./cachestore":47,"./filestore":49,"./networkstore":50,"./syncstore":51,"./userstore":52}],49:[function(require,module,exports){
+
+},{"./cachestore":55,"./filestore":57,"./networkstore":58,"./syncstore":59,"./userstore":60}],57:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -19562,6 +20695,10 @@ exports.FileStore = undefined;
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _networkstore = require('./networkstore');
 
@@ -19653,7 +20790,7 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
       }, options);
 
       options.flags = {
-        tls: options.tls === true ? true : false,
+        tls: options.tls === true,
         ttl_in_seconds: options.ttl
       };
 
@@ -19662,7 +20799,7 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
           var promises = (0, _map2.default)(files, function (file) {
             return _this2.downloadByUrl(file._downloadURL, options);
           });
-          return Promise.all(promises);
+          return _babybird2.default.all(promises);
         }
 
         return files;
@@ -19715,7 +20852,7 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
       }, options);
 
       options.flags = {
-        tls: options.tls === true ? true : false,
+        tls: options.tls === true,
         ttl_in_seconds: options.ttl
       };
 
@@ -19734,7 +20871,7 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
     value: function downloadByUrl(url) {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var request = new _network.NetworkRequest({
           method: _enums.HttpMethod.GET,
           url: url,
@@ -19865,12 +21002,12 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
   }, {
     key: 'save',
     value: function save() {
-      return Promise.reject(new _errors.KinveyError('Please use `upload()` to save files.'));
+      return _babybird2.default.reject(new _errors.KinveyError('Please use `upload()` to save files.'));
     }
   }, {
     key: 'update',
     value: function update() {
-      return Promise.reject(new _errors.KinveyError('Please use `upload()` to update files.'));
+      return _babybird2.default.reject(new _errors.KinveyError('Please use `upload()` to update files.'));
     }
   }, {
     key: '_pathname',
@@ -19888,9 +21025,9 @@ var FileStore = exports.FileStore = function (_NetworkStore) {
   return FileStore;
 }(_networkstore.NetworkStore);
 
-}).call(this,require('_process'))
 
-},{"../enums":23,"../errors":24,"../requests/network":43,"./networkstore":50,"_process":249,"lodash/assign":200,"lodash/map":231,"url":265}],50:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../enums":31,"../errors":32,"../requests/network":51,"./networkstore":58,"_process":275,"babybird":13,"lodash/assign":224,"lodash/map":256,"url":291}],58:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -19900,6 +21037,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.NetworkStore = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _aggregation = require('../aggregation');
 
@@ -19913,7 +21054,7 @@ var _network = require('../requests/network');
 
 var _query = require('../query');
 
-var _Log = require('../Log');
+var _log = require('../log');
 
 var _qs = require('qs');
 
@@ -20002,7 +21143,7 @@ var NetworkStore = exports.NetworkStore = function () {
 
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      _Log.Log.debug('Retrieving the entities in the ' + this.name + ' collection.', query);
+      _log.Log.debug('Retrieving the entities in the ' + this.name + ' collection.', query);
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20012,7 +21153,7 @@ var NetworkStore = exports.NetworkStore = function () {
       options.flags = _qs2.default.parse(options.flags);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _network.NetworkRequest({
@@ -20034,9 +21175,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Retrieved the entities in the ' + _this.name + ' collection.', response);
-      }).catch(function (err) {
-        _Log.Log.error('Failed to retrieve the entities in the ' + _this.name + ' collection.', err);
+        _log.Log.info('Retrieved the entities in the ' + _this.name + ' collection.', response);
+      }).catch(function (error) {
+        _log.Log.error('Failed to retrieve the entities in the ' + _this.name + ' collection.', error);
       });
 
       return promise;
@@ -20063,7 +21204,7 @@ var NetworkStore = exports.NetworkStore = function () {
 
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      _Log.Log.debug('Grouping the entities in the ' + this.name + ' collection.', aggregation, options);
+      _log.Log.debug('Grouping the entities in the ' + this.name + ' collection.', aggregation, options);
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20073,7 +21214,7 @@ var NetworkStore = exports.NetworkStore = function () {
       }, options);
 
       if (!(aggregation instanceof _aggregation.Aggregation)) {
-        return Promise.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
       }
 
       var request = new _network.NetworkRequest({
@@ -20094,9 +21235,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Grouped the entities in the ' + _this2.name + ' collection.', response);
+        _log.Log.info('Grouped the entities in the ' + _this2.name + ' collection.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to group the entities in the ' + _this2.name + ' collection.', err);
+        _log.Log.error('Failed to group the entities in the ' + _this2.name + ' collection.', err);
       });
 
       return promise;
@@ -20123,7 +21264,7 @@ var NetworkStore = exports.NetworkStore = function () {
 
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      _Log.Log.debug('Counting the number of entities in the ' + this.name + ' collection.', query);
+      _log.Log.debug('Counting the number of entities in the ' + this.name + ' collection.', query);
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20133,7 +21274,7 @@ var NetworkStore = exports.NetworkStore = function () {
       }, options);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _network.NetworkRequest({
@@ -20154,9 +21295,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Counted the number of entities in the ' + _this3.name + ' collection.', response);
+        _log.Log.info('Counted the number of entities in the ' + _this3.name + ' collection.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to count the number of entities in the ' + _this3.name + ' collection.', err);
+        _log.Log.error('Failed to count the number of entities in the ' + _this3.name + ' collection.', err);
       });
 
       return promise;
@@ -20182,11 +21323,11 @@ var NetworkStore = exports.NetworkStore = function () {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (!id) {
-        _Log.Log.warn('No id was provided to retrieve an entity.', id);
-        return Promise.resolve(null);
+        _log.Log.warn('No id was provided to retrieve an entity.', id);
+        return _babybird2.default.resolve(null);
       }
 
-      _Log.Log.debug('Retrieving the entity in the ' + this.name + ' collection with id = ' + id + '.');
+      _log.Log.debug('Retrieving the entity in the ' + this.name + ' collection with id = ' + id + '.');
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20211,9 +21352,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Retrieved the entity in the ' + _this4.name + ' collection with id = ' + id + '.', response);
+        _log.Log.info('Retrieved the entity in the ' + _this4.name + ' collection with id = ' + id + '.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to retrieve the entity in the ' + _this4.name + ' collection with id = ' + id + '.', err);
+        _log.Log.error('Failed to retrieve the entity in the ' + _this4.name + ' collection with id = ' + id + '.', err);
       });
 
       return promise;
@@ -20239,11 +21380,11 @@ var NetworkStore = exports.NetworkStore = function () {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (!entity) {
-        _Log.Log.warn('No entity was provided to be saved.', entity);
-        return Promise.resolve(null);
+        _log.Log.warn('No entity was provided to be saved.', entity);
+        return _babybird2.default.resolve(null);
       }
 
-      _Log.Log.debug('Saving the entity(s) to the ' + this.name + ' collection.', entity);
+      _log.Log.debug('Saving the entity(s) to the ' + this.name + ' collection.', entity);
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20279,9 +21420,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Saved the entity(s) to the ' + _this5.name + ' collection.', response);
+        _log.Log.info('Saved the entity(s) to the ' + _this5.name + ' collection.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to save the entity(s) to the ' + _this5.name + ' collection.', err);
+        _log.Log.error('Failed to save the entity(s) to the ' + _this5.name + ' collection.', err);
       });
 
       return promise;
@@ -20308,7 +21449,7 @@ var NetworkStore = exports.NetworkStore = function () {
 
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      _Log.Log.debug('Removing the entities in the ' + this.name + ' collection.', query);
+      _log.Log.debug('Removing the entities in the ' + this.name + ' collection.', query);
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20317,7 +21458,7 @@ var NetworkStore = exports.NetworkStore = function () {
       }, options);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _network.NetworkRequest({
@@ -20338,9 +21479,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Removed the entities in the ' + _this6.name + ' collection.', response);
+        _log.Log.info('Removed the entities in the ' + _this6.name + ' collection.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to remove the entities in the ' + _this6.name + ' collection.', err);
+        _log.Log.error('Failed to remove the entities in the ' + _this6.name + ' collection.', err);
       });
 
       return promise;
@@ -20366,11 +21507,11 @@ var NetworkStore = exports.NetworkStore = function () {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       if (!id) {
-        _Log.Log.warn('No id was provided to be removed.', id);
-        return Promise.resolve(null);
+        _log.Log.warn('No id was provided to be removed.', id);
+        return _babybird2.default.resolve(null);
       }
 
-      _Log.Log.debug('Removing an entity in the ' + this.name + ' collection with id = ' + id + '.');
+      _log.Log.debug('Removing an entity in the ' + this.name + ' collection with id = ' + id + '.');
 
       options = (0, _assign2.default)({
         properties: null,
@@ -20395,9 +21536,9 @@ var NetworkStore = exports.NetworkStore = function () {
       });
 
       promise.then(function (response) {
-        _Log.Log.info('Removed the entity in the ' + _this7.name + ' collection with id = ' + id + '.', response);
+        _log.Log.info('Removed the entity in the ' + _this7.name + ' collection with id = ' + id + '.', response);
       }).catch(function (err) {
-        _Log.Log.error('Failed to remove the entity in the ' + _this7.name + ' collection with id = ' + id + '.', err);
+        _log.Log.error('Failed to remove the entity in the ' + _this7.name + ' collection with id = ' + id + '.', err);
       });
 
       return promise;
@@ -20418,9 +21559,9 @@ var NetworkStore = exports.NetworkStore = function () {
   return NetworkStore;
 }();
 
-}).call(this,require('_process'))
 
-},{"../Log":18,"../aggregation":20,"../client":21,"../enums":23,"../errors":24,"../query":29,"../requests/network":43,"_process":249,"lodash/assign":200,"lodash/isString":224,"qs":254,"url":265}],51:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../aggregation":28,"../client":29,"../enums":31,"../errors":32,"../log":34,"../query":37,"../requests/network":51,"_process":275,"babybird":13,"lodash/assign":224,"lodash/isString":249,"qs":280,"url":291}],59:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -20432,6 +21573,10 @@ exports.SyncStore = undefined;
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _cachestore = require('./cachestore');
 
@@ -20499,7 +21644,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       _log.Log.debug('Retrieving the entities in the ' + this.name + ' collection.', query);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _local.LocalRequest({
@@ -20554,7 +21699,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       _log.Log.debug('Grouping the entities in the ' + this.name + ' collection.', aggregation, options);
 
       if (!(aggregation instanceof _aggregation.Aggregation)) {
-        return Promise.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid aggregation. ' + 'It must be an instance of the Kinvey.Aggregation class.'));
       }
 
       var request = new _local.LocalRequest({
@@ -20609,7 +21754,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       _log.Log.debug('Counting the number of entities in the ' + this.name + ' collection.', query);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _local.LocalRequest({
@@ -20661,7 +21806,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
 
       if (!id) {
         _log.Log.warn('No id was provided to retrieve an entity.', id);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Retrieving the entity in the ' + this.name + ' collection with id = ' + id + '.');
@@ -20714,7 +21859,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
 
       if (!entity) {
         _log.Log.warn('No entity was provided to be saved.', entity);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Saving the entity(s) to the ' + this.name + ' collection.', entity);
@@ -20741,7 +21886,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       }
 
       var promise = request.execute().then(function (response) {
-        return _this6._updateSync(response.data, options).then(function () {
+        return _this6._sync(response.data, options).then(function () {
           return response.data;
         });
       });
@@ -20779,7 +21924,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       _log.Log.debug('Removing the entities in the ' + this.name + ' collection.', query);
 
       if (query && !(query instanceof _query.Query)) {
-        return Promise.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Invalid query. It must be an instance of the Kinvey.Query class.'));
       }
 
       var request = new _local.LocalRequest({
@@ -20796,7 +21941,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       });
 
       var promise = request.execute().then(function (response) {
-        return _this7._updateSync(response.data.entities, options).then(function () {
+        return _this7._sync(response.data.entities, options).then(function () {
           return response.data;
         });
       });
@@ -20831,7 +21976,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
 
       if (!id) {
         _log.Log.warn('No id was provided to be removed.', id);
-        return Promise.resolve(null);
+        return _babybird2.default.resolve(null);
       }
 
       _log.Log.debug('Removing an entity in the ' + this.name + ' collection with id = ' + id + '.');
@@ -20849,7 +21994,7 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
       });
 
       var promise = request.execute().then(function (response) {
-        return _this8._updateSync(response.data.entities, options).then(function () {
+        return _this8._sync(response.data.entities, options).then(function () {
           return response.data;
         });
       });
@@ -20889,9 +22034,8 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
 
         return _get(Object.getPrototypeOf(SyncStore.prototype), 'find', _this9).call(_this9, query, options);
       }).then(function (result) {
-        return result.network;
+        return result.networkPromise;
       });
-
       return promise;
     }
   }]);
@@ -20899,9 +22043,9 @@ var SyncStore = exports.SyncStore = function (_CacheStore) {
   return SyncStore;
 }(_cachestore.CacheStore);
 
-}).call(this,require('_process'))
 
-},{"../aggregation":20,"../enums":23,"../errors":24,"../log":26,"../query":29,"../requests/local":42,"./cachestore":47,"_process":249,"url":265}],52:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../aggregation":28,"../enums":31,"../errors":32,"../log":34,"../query":37,"../requests/local":50,"./cachestore":55,"_process":275,"babybird":13,"url":291}],60:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -20913,6 +22057,10 @@ exports.UserStore = undefined;
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _errors = require('../errors');
 
@@ -20959,7 +22107,7 @@ var UserStore = exports.UserStore = function (_NetworkStore) {
 
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         if (!user) {
           throw new _errors.KinveyError('No user was provided to be updated.');
         }
@@ -21010,7 +22158,6 @@ var UserStore = exports.UserStore = function (_NetworkStore) {
       var promise = request.execute().then(function (response) {
         return response.data.usernameExists;
       });
-
       return promise;
     }
   }, {
@@ -21034,7 +22181,6 @@ var UserStore = exports.UserStore = function (_NetworkStore) {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
   }, {
@@ -21053,9 +22199,9 @@ var UserStore = exports.UserStore = function (_NetworkStore) {
   return UserStore;
 }(_networkstore.NetworkStore);
 
-}).call(this,require('_process'))
 
-},{"../enums":23,"../errors":24,"../requests/network":43,"./networkstore":50,"_process":249,"lodash/isArray":211,"url":265}],53:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"../enums":31,"../errors":32,"../requests/network":51,"./networkstore":58,"_process":275,"babybird":13,"lodash/isArray":236,"url":291}],61:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -21063,6 +22209,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.Sync = undefined;
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _datastore = require('./stores/datastore');
 
@@ -21108,7 +22258,7 @@ var Sync = {
         var store = _datastore.DataStore.getInstance(data[idAttribute], _enums.DataStoreType.Sync);
         return store.push();
       });
-      return Promise.all(promises);
+      return _babybird2.default.all(promises);
     });
     return promise;
   },
@@ -21121,7 +22271,7 @@ var Sync = {
         var store = _datastore.DataStore.getInstance(data[idAttribute], _enums.DataStoreType.Sync);
         return store.sync();
       });
-      return Promise.all(promises);
+      return _babybird2.default.all(promises);
     });
     return promise;
   }
@@ -21129,9 +22279,9 @@ var Sync = {
 
 exports.Sync = Sync;
 
-}).call(this,require('_process'))
 
-},{"./enums":23,"./query":29,"./stores/datastore":48,"_process":249,"lodash/reduce":236}],54:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./enums":31,"./query":37,"./stores/datastore":56,"_process":275,"babybird":13,"lodash/reduce":262}],62:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -21141,6 +22291,10 @@ Object.defineProperty(exports, "__esModule", {
 exports.User = undefined;
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _babybird = require('babybird');
+
+var _babybird2 = _interopRequireDefault(_babybird);
 
 var _client = require('./client');
 
@@ -21333,16 +22487,16 @@ var User = exports.User = function () {
 
       var isActiveUser = this.isActive();
       if (isActiveUser) {
-        return Promise.reject(new _errors.ActiveUserError('This user is already the active user.'));
+        return _babybird2.default.reject(new _errors.ActiveUserError('This user is already the active user.'));
       }
 
       var activeUser = User.getActiveUser(this.client);
       if (activeUser) {
-        return Promise.reject(new _errors.ActiveUserError('An active user already exists. ' + 'Please logout the active user before you login.'));
+        return _babybird2.default.reject(new _errors.ActiveUserError('An active user already exists. ' + 'Please logout the active user before you login.'));
       }
 
       if ((!usernameOrData.username || usernameOrData.username === '' || !usernameOrData.password || usernameOrData.password === '') && !usernameOrData[socialIdentityAttribute]) {
-        return Promise.reject(new _errors.KinveyError('Username and/or password missing. ' + 'Please provide both a username and password to login.'));
+        return _babybird2.default.reject(new _errors.KinveyError('Username and/or password missing. ' + 'Please provide both a username and password to login.'));
       }
 
       var request = new _network.NetworkRequest({
@@ -21403,7 +22557,7 @@ var User = exports.User = function () {
       var mic = new _mic.MobileIdentityConnect(this.client);
       return mic.login(redirectUri, authorizationGrant, options).then(function (token) {
         options.redirectUri = redirectUri;
-        options.client = (0, _result2.default)(mic.client, 'toJSON', mic.client);
+        options.micClient = (0, _result2.default)(mic.client, 'toJSON', mic.client);
         return _this2.connect(_mic.MobileIdentityConnect.identity, token, options);
       });
     }
@@ -21433,7 +22587,7 @@ var User = exports.User = function () {
       var isActive = this.isActive();
 
       if (!isActive) {
-        return null;
+        return _babybird2.default.resolve();
       }
 
       var request = new _network.NetworkRequest({
@@ -21452,10 +22606,11 @@ var User = exports.User = function () {
         return null;
       }).then(function () {
         var isActive = _this3.isActive();
-
         if (isActive) {
           return User.setActiveUser(null, _this3.client);
         }
+
+        return null;
       }).then(function () {
         return _this3;
       });
@@ -21502,10 +22657,10 @@ var User = exports.User = function () {
       var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
       options = (0, _assign2.default)({
-        collectionName: 'Identities'
+        collectionName: 'identities'
       }, options);
 
-      var promise = Promise.resolve().then0(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         if (!identity) {
           throw new _errors.KinveyError('An identity is required to connect the user.');
         }
@@ -21517,11 +22672,11 @@ var User = exports.User = function () {
         var query = new _query.Query().equalTo('identity', identity);
         var request = new _network.NetworkRequest({
           method: _enums.HttpMethod.GET,
-          authType: _enums.AuthType.Default,
+          authType: _enums.AuthType.None,
           url: _url2.default.format({
             protocol: _this4.client.protocol,
-            host: _this4.client.hose,
-            pathanme: '/' + appdataNamespace + '/' + _this4.client.appKey + '/' + options.collectionName
+            host: _this4.client.host,
+            pathname: '/' + appdataNamespace + '/' + _this4.client.appKey + '/' + options.collectionName
           }),
           query: query,
           properties: options.properties,
@@ -21583,7 +22738,7 @@ var User = exports.User = function () {
       data[socialIdentityAttribute] = socialIdentity;
       this.data = data;
 
-      var promise = Promise.resolve().then(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         var isActive = _this5.isActive();
 
         if (isActive) {
@@ -21594,7 +22749,7 @@ var User = exports.User = function () {
         return _this5.login(data, null, options);
       }).catch(function (err) {
         if (err instanceof _errors.NotFoundError) {
-          return _this5.signup(data, options).then0(function () {
+          return _this5.signup(data, options).then(function () {
             return _this5.connect(identity, token, options);
           });
         }
@@ -21605,7 +22760,7 @@ var User = exports.User = function () {
           identity: identity,
           token: _this5._socialIdentity[identity],
           redirectUri: options.redirectUri,
-          client: options.client
+          client: options.micClient
         });
         return _this5;
       });
@@ -21625,7 +22780,7 @@ var User = exports.User = function () {
       data[socialIdentityAttribute] = socialIdentity;
       this.data = data;
 
-      var promise = Promise.resolve().then0(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         if (!_this6._id) {
           return _this6;
         }
@@ -21679,14 +22834,14 @@ var User = exports.User = function () {
         state: true
       }, options);
 
-      var promise = Promise.resolve().then0(function () {
+      var promise = _babybird2.default.resolve().then(function () {
         if (options.state === true) {
           var activeUser = User.getActiveUser(_this7.client);
           if (activeUser) {
             throw new _errors.ActiveUserError('An active user already exists. ' + 'Please logout the active user before you login.');
           }
         }
-      }).then0(function () {
+      }).then(function () {
         var request = new _network.NetworkRequest({
           method: _enums.HttpMethod.POST,
           authType: _enums.AuthType.App,
@@ -21791,7 +22946,6 @@ var User = exports.User = function () {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
   }, {
@@ -21816,7 +22970,6 @@ var User = exports.User = function () {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
   }, {
@@ -21840,7 +22993,6 @@ var User = exports.User = function () {
       var promise = request.execute().then(function (response) {
         return response.data;
       });
-
       return promise;
     }
 
@@ -22170,9 +23322,9 @@ var User = exports.User = function () {
   return User;
 }();
 
-}).call(this,require('_process'))
 
-},{"./acl":19,"./client":21,"./enums":23,"./errors":24,"./metadata":27,"./mic":28,"./query":29,"./requests/network":43,"./stores/datastore":48,"_process":249,"hellojs":12,"lodash/assign":200,"lodash/isObject":220,"lodash/result":238,"url":265}],55:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./acl":27,"./client":29,"./enums":31,"./errors":32,"./metadata":35,"./mic":36,"./query":37,"./requests/network":51,"./stores/datastore":56,"_process":275,"babybird":13,"hellojs":21,"lodash/assign":224,"lodash/isObject":245,"lodash/result":264,"url":291}],63:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -22207,7 +23359,8 @@ var Device = exports.Device = function () {
 
 Device.use = (0, _object.use)(['toJSON']);
 
-},{"./object":56}],56:[function(require,module,exports){
+
+},{"./object":64}],64:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -22232,7 +23385,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  */
 function nested(obj, dotProperty, value) {
   if (!dotProperty) {
-    obj = value ? value : obj;
+    obj = value !== undefined ? value : obj;
     return obj;
   }
 
@@ -22243,7 +23396,7 @@ function nested(obj, dotProperty, value) {
     current = parts.shift();
   }
 
-  return value ? value : obj;
+  return value !== undefined ? value : obj;
 }
 
 /**
@@ -22265,14 +23418,19 @@ function use(nsInterface) {
     (0, _forEach2.default)(nsInterface, function (methodName) {
       if ((0, _isFunction2.default)(adapter[methodName])) {
         _this.prototype[methodName] = function () {
-          return adapter[methodName].apply(this, arguments);
+          for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+            args[_key] = arguments[_key];
+          }
+
+          return adapter[methodName].apply(this, args);
         };
       }
     });
   };
 }
 
-},{"lodash/forEach":206,"lodash/isFunction":216}],57:[function(require,module,exports){
+
+},{"lodash/forEach":231,"lodash/isFunction":241}],65:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -22342,7 +23500,8 @@ var Popup = exports.Popup = function (_EventEmitter) {
 
 Popup.use = (0, _object.use)(['open', 'close', 'loadHandler', 'clickHandler', 'closeHandler']);
 
-},{"./object":56,"events":8}],58:[function(require,module,exports){
+
+},{"./object":64,"events":17}],66:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -22379,7 +23538,8 @@ function randomString(size) {
   return '' + prefix + (0, _uid2.default)(size);
 }
 
-},{"uid":263}],59:[function(require,module,exports){
+
+},{"uid":289}],67:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -22425,8 +23585,7 @@ accessor.off = tracking.off;
 module.exports = accessor;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"./stub":60,"./tracking":61}],60:[function(require,module,exports){
+},{"./stub":68,"./tracking":69}],68:[function(require,module,exports){
 'use strict';
 
 var ms = {};
@@ -22460,7 +23619,7 @@ module.exports = {
   clear: clear
 };
 
-},{}],61:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -22517,8 +23676,16 @@ module.exports = {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],70:[function(require,module,exports){
+var getNative = require('./_getNative'),
+    root = require('./_root');
 
-},{}],62:[function(require,module,exports){
+/* Built-in method references that are verified to be native. */
+var DataView = getNative(root, 'DataView');
+
+module.exports = DataView;
+
+},{"./_getNative":176,"./_root":213}],71:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used for built-in method references. */
@@ -22538,7 +23705,7 @@ Hash.prototype = nativeCreate ? nativeCreate(null) : objectProto;
 
 module.exports = Hash;
 
-},{"./_nativeCreate":185}],63:[function(require,module,exports){
+},{"./_nativeCreate":209}],72:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
     baseLodash = require('./_baseLodash');
 
@@ -22562,12 +23729,13 @@ function LazyWrapper(value) {
   this.__views__ = [];
 }
 
+// Ensure `LazyWrapper` is an instance of `baseLodash`.
 LazyWrapper.prototype = baseCreate(baseLodash.prototype);
 LazyWrapper.prototype.constructor = LazyWrapper;
 
 module.exports = LazyWrapper;
 
-},{"./_baseCreate":93,"./_baseLodash":108}],64:[function(require,module,exports){
+},{"./_baseCreate":106,"./_baseLodash":125}],73:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
     baseLodash = require('./_baseLodash');
 
@@ -22576,7 +23744,7 @@ var baseCreate = require('./_baseCreate'),
  *
  * @private
  * @param {*} value The value to wrap.
- * @param {boolean} [chainAll] Enable chaining for all wrapper methods.
+ * @param {boolean} [chainAll] Enable explicit method chain sequences.
  */
 function LodashWrapper(value, chainAll) {
   this.__wrapped__ = value;
@@ -22591,7 +23759,7 @@ LodashWrapper.prototype.constructor = LodashWrapper;
 
 module.exports = LodashWrapper;
 
-},{"./_baseCreate":93,"./_baseLodash":108}],65:[function(require,module,exports){
+},{"./_baseCreate":106,"./_baseLodash":125}],74:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -22600,7 +23768,7 @@ var Map = getNative(root, 'Map');
 
 module.exports = Map;
 
-},{"./_getNative":155,"./_root":190}],66:[function(require,module,exports){
+},{"./_getNative":176,"./_root":213}],75:[function(require,module,exports){
 var mapClear = require('./_mapClear'),
     mapDelete = require('./_mapDelete'),
     mapGet = require('./_mapGet'),
@@ -22625,7 +23793,7 @@ function MapCache(values) {
   }
 }
 
-// Add functions to the `MapCache`.
+// Add methods to `MapCache`.
 MapCache.prototype.clear = mapClear;
 MapCache.prototype['delete'] = mapDelete;
 MapCache.prototype.get = mapGet;
@@ -22634,7 +23802,16 @@ MapCache.prototype.set = mapSet;
 
 module.exports = MapCache;
 
-},{"./_mapClear":177,"./_mapDelete":178,"./_mapGet":179,"./_mapHas":180,"./_mapSet":181}],67:[function(require,module,exports){
+},{"./_mapClear":200,"./_mapDelete":201,"./_mapGet":202,"./_mapHas":203,"./_mapSet":204}],76:[function(require,module,exports){
+var getNative = require('./_getNative'),
+    root = require('./_root');
+
+/* Built-in method references that are verified to be native. */
+var Promise = getNative(root, 'Promise');
+
+module.exports = Promise;
+
+},{"./_getNative":176,"./_root":213}],77:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -22642,7 +23819,7 @@ var Reflect = root.Reflect;
 
 module.exports = Reflect;
 
-},{"./_root":190}],68:[function(require,module,exports){
+},{"./_root":213}],78:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -22651,7 +23828,34 @@ var Set = getNative(root, 'Set');
 
 module.exports = Set;
 
-},{"./_getNative":155,"./_root":190}],69:[function(require,module,exports){
+},{"./_getNative":176,"./_root":213}],79:[function(require,module,exports){
+var MapCache = require('./_MapCache'),
+    cachePush = require('./_cachePush');
+
+/**
+ *
+ * Creates a set cache object to store unique values.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [values] The values to cache.
+ */
+function SetCache(values) {
+  var index = -1,
+      length = values ? values.length : 0;
+
+  this.__data__ = new MapCache;
+  while (++index < length) {
+    this.push(values[index]);
+  }
+}
+
+// Add methods to `SetCache`.
+SetCache.prototype.push = cachePush;
+
+module.exports = SetCache;
+
+},{"./_MapCache":75,"./_cachePush":140}],80:[function(require,module,exports){
 var stackClear = require('./_stackClear'),
     stackDelete = require('./_stackDelete'),
     stackGet = require('./_stackGet'),
@@ -22676,7 +23880,7 @@ function Stack(values) {
   }
 }
 
-// Add functions to the `Stack` cache.
+// Add methods to `Stack`.
 Stack.prototype.clear = stackClear;
 Stack.prototype['delete'] = stackDelete;
 Stack.prototype.get = stackGet;
@@ -22685,7 +23889,7 @@ Stack.prototype.set = stackSet;
 
 module.exports = Stack;
 
-},{"./_stackClear":193,"./_stackDelete":194,"./_stackGet":195,"./_stackHas":196,"./_stackSet":197}],70:[function(require,module,exports){
+},{"./_stackClear":216,"./_stackDelete":217,"./_stackGet":218,"./_stackHas":219,"./_stackSet":220}],81:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -22693,7 +23897,7 @@ var Symbol = root.Symbol;
 
 module.exports = Symbol;
 
-},{"./_root":190}],71:[function(require,module,exports){
+},{"./_root":213}],82:[function(require,module,exports){
 var root = require('./_root');
 
 /** Built-in value references. */
@@ -22701,7 +23905,7 @@ var Uint8Array = root.Uint8Array;
 
 module.exports = Uint8Array;
 
-},{"./_root":190}],72:[function(require,module,exports){
+},{"./_root":213}],83:[function(require,module,exports){
 var getNative = require('./_getNative'),
     root = require('./_root');
 
@@ -22710,7 +23914,7 @@ var WeakMap = getNative(root, 'WeakMap');
 
 module.exports = WeakMap;
 
-},{"./_getNative":155,"./_root":190}],73:[function(require,module,exports){
+},{"./_getNative":176,"./_root":213}],84:[function(require,module,exports){
 /**
  * Adds the key-value `pair` to `map`.
  *
@@ -22727,7 +23931,7 @@ function addMapEntry(map, pair) {
 
 module.exports = addMapEntry;
 
-},{}],74:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 /**
  * Adds `value` to `set`.
  *
@@ -22743,7 +23947,7 @@ function addSetEntry(set, value) {
 
 module.exports = addSetEntry;
 
-},{}],75:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 /**
  * A faster alternative to `Function#apply`, this function invokes `func`
  * with the `this` binding of `thisArg` and the arguments of `args`.
@@ -22751,7 +23955,7 @@ module.exports = addSetEntry;
  * @private
  * @param {Function} func The function to invoke.
  * @param {*} thisArg The `this` binding of `func`.
- * @param {...*} args The arguments to invoke `func` with.
+ * @param {Array} args The arguments to invoke `func` with.
  * @returns {*} Returns the result of `func`.
  */
 function apply(func, thisArg, args) {
@@ -22767,7 +23971,7 @@ function apply(func, thisArg, args) {
 
 module.exports = apply;
 
-},{}],76:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 /**
  * A specialized version of `baseAggregator` for arrays.
  *
@@ -22791,7 +23995,7 @@ function arrayAggregator(array, setter, iteratee, accumulator) {
 
 module.exports = arrayAggregator;
 
-},{}],77:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 /**
  * A specialized version of `_.forEach` for arrays without support for
  * iteratee shorthands.
@@ -22815,7 +24019,49 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],78:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
+var baseIndexOf = require('./_baseIndexOf');
+
+/**
+ * A specialized version of `_.includes` for arrays without support for
+ * specifying an index to search from.
+ *
+ * @private
+ * @param {Array} array The array to search.
+ * @param {*} target The value to search for.
+ * @returns {boolean} Returns `true` if `target` is found, else `false`.
+ */
+function arrayIncludes(array, value) {
+  return !!array.length && baseIndexOf(array, value, 0) > -1;
+}
+
+module.exports = arrayIncludes;
+
+},{"./_baseIndexOf":118}],90:[function(require,module,exports){
+/**
+ * This function is like `arrayIncludes` except that it accepts a comparator.
+ *
+ * @private
+ * @param {Array} array The array to search.
+ * @param {*} target The value to search for.
+ * @param {Function} comparator The comparator invoked per element.
+ * @returns {boolean} Returns `true` if `target` is found, else `false`.
+ */
+function arrayIncludesWith(array, value, comparator) {
+  var index = -1,
+      length = array.length;
+
+  while (++index < length) {
+    if (comparator(value, array[index])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+module.exports = arrayIncludesWith;
+
+},{}],91:[function(require,module,exports){
 /**
  * A specialized version of `_.map` for arrays without support for iteratee
  * shorthands.
@@ -22838,7 +24084,29 @@ function arrayMap(array, iteratee) {
 
 module.exports = arrayMap;
 
-},{}],79:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
+/**
+ * Appends the elements of `values` to `array`.
+ *
+ * @private
+ * @param {Array} array The array to modify.
+ * @param {Array} values The values to append.
+ * @returns {Array} Returns `array`.
+ */
+function arrayPush(array, values) {
+  var index = -1,
+      length = values.length,
+      offset = array.length;
+
+  while (++index < length) {
+    array[offset + index] = values[index];
+  }
+  return array;
+}
+
+module.exports = arrayPush;
+
+},{}],93:[function(require,module,exports){
 /**
  * A specialized version of `_.reduce` for arrays without support for
  * iteratee shorthands.
@@ -22847,7 +24115,8 @@ module.exports = arrayMap;
  * @param {Array} array The array to iterate over.
  * @param {Function} iteratee The function invoked per iteration.
  * @param {*} [accumulator] The initial value.
- * @param {boolean} [initAccum] Specify using the first element of `array` as the initial value.
+ * @param {boolean} [initAccum] Specify using the first element of `array` as
+ *  the initial value.
  * @returns {*} Returns the accumulated value.
  */
 function arrayReduce(array, iteratee, accumulator, initAccum) {
@@ -22865,7 +24134,7 @@ function arrayReduce(array, iteratee, accumulator, initAccum) {
 
 module.exports = arrayReduce;
 
-},{}],80:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 /**
  * A specialized version of `_.some` for arrays without support for iteratee
  * shorthands.
@@ -22873,7 +24142,8 @@ module.exports = arrayReduce;
  * @private
  * @param {Array} array The array to iterate over.
  * @param {Function} predicate The function invoked per iteration.
- * @returns {boolean} Returns `true` if any element passes the predicate check, else `false`.
+ * @returns {boolean} Returns `true` if any element passes the predicate check,
+ *  else `false`.
  */
 function arraySome(array, predicate) {
   var index = -1,
@@ -22889,7 +24159,7 @@ function arraySome(array, predicate) {
 
 module.exports = arraySome;
 
-},{}],81:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 var eq = require('./eq');
 
 /**
@@ -22910,7 +24180,7 @@ function assignMergeValue(object, key, value) {
 
 module.exports = assignMergeValue;
 
-},{"./eq":203}],82:[function(require,module,exports){
+},{"./eq":228}],96:[function(require,module,exports){
 var eq = require('./eq');
 
 /** Used for built-in method references. */
@@ -22939,7 +24209,7 @@ function assignValue(object, key, value) {
 
 module.exports = assignValue;
 
-},{"./eq":203}],83:[function(require,module,exports){
+},{"./eq":228}],97:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /** Used for built-in method references. */
@@ -22952,7 +24222,7 @@ var splice = arrayProto.splice;
  * Removes `key` and its value from the associative array.
  *
  * @private
- * @param {Array} array The array to query.
+ * @param {Array} array The array to modify.
  * @param {string} key The key of the value to remove.
  * @returns {boolean} Returns `true` if the entry was removed, else `false`.
  */
@@ -22972,7 +24242,7 @@ function assocDelete(array, key) {
 
 module.exports = assocDelete;
 
-},{"./_assocIndexOf":86}],84:[function(require,module,exports){
+},{"./_assocIndexOf":100}],98:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -22990,7 +24260,7 @@ function assocGet(array, key) {
 
 module.exports = assocGet;
 
-},{"./_assocIndexOf":86}],85:[function(require,module,exports){
+},{"./_assocIndexOf":100}],99:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -23007,12 +24277,11 @@ function assocHas(array, key) {
 
 module.exports = assocHas;
 
-},{"./_assocIndexOf":86}],86:[function(require,module,exports){
+},{"./_assocIndexOf":100}],100:[function(require,module,exports){
 var eq = require('./eq');
 
 /**
- * Gets the index at which the first occurrence of `key` is found in `array`
- * of key-value pairs.
+ * Gets the index at which the `key` is found in `array` of key-value pairs.
  *
  * @private
  * @param {Array} array The array to search.
@@ -23031,7 +24300,7 @@ function assocIndexOf(array, key) {
 
 module.exports = assocIndexOf;
 
-},{"./eq":203}],87:[function(require,module,exports){
+},{"./eq":228}],101:[function(require,module,exports){
 var assocIndexOf = require('./_assocIndexOf');
 
 /**
@@ -23053,7 +24322,7 @@ function assocSet(array, key, value) {
 
 module.exports = assocSet;
 
-},{"./_assocIndexOf":86}],88:[function(require,module,exports){
+},{"./_assocIndexOf":100}],102:[function(require,module,exports){
 var baseEach = require('./_baseEach');
 
 /**
@@ -23076,7 +24345,7 @@ function baseAggregator(collection, setter, iteratee, accumulator) {
 
 module.exports = baseAggregator;
 
-},{"./_baseEach":94}],89:[function(require,module,exports){
+},{"./_baseEach":108}],103:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keys = require('./keys');
 
@@ -23095,23 +24364,7 @@ function baseAssign(object, source) {
 
 module.exports = baseAssign;
 
-},{"./_copyObject":133,"./keys":228}],90:[function(require,module,exports){
-var identity = require('./identity');
-
-/**
- * Casts `value` to `identity` if it's not a function.
- *
- * @private
- * @param {*} value The value to inspect.
- * @returns {Array} Returns the array-like object.
- */
-function baseCastFunction(value) {
-  return typeof value == 'function' ? value : identity;
-}
-
-module.exports = baseCastFunction;
-
-},{"./identity":209}],91:[function(require,module,exports){
+},{"./_copyObject":153,"./keys":253}],104:[function(require,module,exports){
 var isArray = require('./isArray'),
     stringToPath = require('./_stringToPath');
 
@@ -23128,15 +24381,15 @@ function baseCastPath(value) {
 
 module.exports = baseCastPath;
 
-},{"./_stringToPath":198,"./isArray":211}],92:[function(require,module,exports){
+},{"./_stringToPath":221,"./isArray":236}],105:[function(require,module,exports){
 var Stack = require('./_Stack'),
     arrayEach = require('./_arrayEach'),
     assignValue = require('./_assignValue'),
     baseAssign = require('./_baseAssign'),
-    baseForOwn = require('./_baseForOwn'),
     cloneBuffer = require('./_cloneBuffer'),
     copyArray = require('./_copyArray'),
     copySymbols = require('./_copySymbols'),
+    getAllKeys = require('./_getAllKeys'),
     getTag = require('./_getTag'),
     initCloneArray = require('./_initCloneArray'),
     initCloneByTag = require('./_initCloneByTag'),
@@ -23144,7 +24397,8 @@ var Stack = require('./_Stack'),
     isArray = require('./isArray'),
     isBuffer = require('./isBuffer'),
     isHostObject = require('./_isHostObject'),
-    isObject = require('./isObject');
+    isObject = require('./isObject'),
+    keys = require('./keys');
 
 /** `Object#toString` result references. */
 var argsTag = '[object Arguments]',
@@ -23164,6 +24418,7 @@ var argsTag = '[object Arguments]',
     weakMapTag = '[object WeakMap]';
 
 var arrayBufferTag = '[object ArrayBuffer]',
+    dataViewTag = '[object DataView]',
     float32Tag = '[object Float32Array]',
     float64Tag = '[object Float64Array]',
     int8Tag = '[object Int8Array]',
@@ -23177,16 +24432,16 @@ var arrayBufferTag = '[object ArrayBuffer]',
 /** Used to identify `toStringTag` values supported by `_.clone`. */
 var cloneableTags = {};
 cloneableTags[argsTag] = cloneableTags[arrayTag] =
-cloneableTags[arrayBufferTag] = cloneableTags[boolTag] =
-cloneableTags[dateTag] = cloneableTags[float32Tag] =
-cloneableTags[float64Tag] = cloneableTags[int8Tag] =
-cloneableTags[int16Tag] = cloneableTags[int32Tag] =
-cloneableTags[mapTag] = cloneableTags[numberTag] =
-cloneableTags[objectTag] = cloneableTags[regexpTag] =
-cloneableTags[setTag] = cloneableTags[stringTag] =
-cloneableTags[symbolTag] = cloneableTags[uint8Tag] =
-cloneableTags[uint8ClampedTag] = cloneableTags[uint16Tag] =
-cloneableTags[uint32Tag] = true;
+cloneableTags[arrayBufferTag] = cloneableTags[dataViewTag] =
+cloneableTags[boolTag] = cloneableTags[dateTag] =
+cloneableTags[float32Tag] = cloneableTags[float64Tag] =
+cloneableTags[int8Tag] = cloneableTags[int16Tag] =
+cloneableTags[int32Tag] = cloneableTags[mapTag] =
+cloneableTags[numberTag] = cloneableTags[objectTag] =
+cloneableTags[regexpTag] = cloneableTags[setTag] =
+cloneableTags[stringTag] = cloneableTags[symbolTag] =
+cloneableTags[uint8Tag] = cloneableTags[uint8ClampedTag] =
+cloneableTags[uint16Tag] = cloneableTags[uint32Tag] = true;
 cloneableTags[errorTag] = cloneableTags[funcTag] =
 cloneableTags[weakMapTag] = false;
 
@@ -23234,14 +24489,13 @@ function baseClone(value, isDeep, isFull, customizer, key, object, stack) {
       }
       result = initCloneObject(isFunc ? {} : value);
       if (!isDeep) {
-        result = baseAssign(result, value);
-        return isFull ? copySymbols(value, result) : result;
+        return copySymbols(value, baseAssign(result, value));
       }
     } else {
       if (!cloneableTags[tag]) {
         return object ? value : {};
       }
-      result = initCloneByTag(value, tag, isDeep);
+      result = initCloneByTag(value, tag, baseClone, isDeep);
     }
   }
   // Check for circular references and return its corresponding clone.
@@ -23252,16 +24506,23 @@ function baseClone(value, isDeep, isFull, customizer, key, object, stack) {
   }
   stack.set(value, result);
 
+  if (!isArr) {
+    var props = isFull ? getAllKeys(value) : keys(value);
+  }
   // Recursively populate clone (susceptible to call stack limits).
-  (isArr ? arrayEach : baseForOwn)(value, function(subValue, key) {
+  arrayEach(props || value, function(subValue, key) {
+    if (props) {
+      key = subValue;
+      subValue = value[key];
+    }
     assignValue(result, key, baseClone(subValue, isDeep, isFull, customizer, key, value, stack));
   });
-  return (isFull && !isArr) ? copySymbols(value, result) : result;
+  return result;
 }
 
 module.exports = baseClone;
 
-},{"./_Stack":69,"./_arrayEach":77,"./_assignValue":82,"./_baseAssign":89,"./_baseForOwn":98,"./_cloneBuffer":124,"./_copyArray":132,"./_copySymbols":135,"./_getTag":158,"./_initCloneArray":165,"./_initCloneByTag":166,"./_initCloneObject":167,"./_isHostObject":168,"./isArray":211,"./isBuffer":214,"./isObject":220}],93:[function(require,module,exports){
+},{"./_Stack":80,"./_arrayEach":88,"./_assignValue":96,"./_baseAssign":103,"./_cloneBuffer":143,"./_copyArray":152,"./_copySymbols":155,"./_getAllKeys":171,"./_getTag":180,"./_initCloneArray":188,"./_initCloneByTag":189,"./_initCloneObject":190,"./_isHostObject":191,"./isArray":236,"./isBuffer":239,"./isObject":245,"./keys":253}],106:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** Built-in value references. */
@@ -23281,7 +24542,75 @@ function baseCreate(proto) {
 
 module.exports = baseCreate;
 
-},{"./isObject":220}],94:[function(require,module,exports){
+},{"./isObject":245}],107:[function(require,module,exports){
+var SetCache = require('./_SetCache'),
+    arrayIncludes = require('./_arrayIncludes'),
+    arrayIncludesWith = require('./_arrayIncludesWith'),
+    arrayMap = require('./_arrayMap'),
+    baseUnary = require('./_baseUnary'),
+    cacheHas = require('./_cacheHas');
+
+/** Used as the size to enable large array optimizations. */
+var LARGE_ARRAY_SIZE = 200;
+
+/**
+ * The base implementation of methods like `_.difference` without support
+ * for excluding multiple arrays or iteratee shorthands.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {Array} values The values to exclude.
+ * @param {Function} [iteratee] The iteratee invoked per element.
+ * @param {Function} [comparator] The comparator invoked per element.
+ * @returns {Array} Returns the new array of filtered values.
+ */
+function baseDifference(array, values, iteratee, comparator) {
+  var index = -1,
+      includes = arrayIncludes,
+      isCommon = true,
+      length = array.length,
+      result = [],
+      valuesLength = values.length;
+
+  if (!length) {
+    return result;
+  }
+  if (iteratee) {
+    values = arrayMap(values, baseUnary(iteratee));
+  }
+  if (comparator) {
+    includes = arrayIncludesWith;
+    isCommon = false;
+  }
+  else if (values.length >= LARGE_ARRAY_SIZE) {
+    includes = cacheHas;
+    isCommon = false;
+    values = new SetCache(values);
+  }
+  outer:
+  while (++index < length) {
+    var value = array[index],
+        computed = iteratee ? iteratee(value) : value;
+
+    if (isCommon && computed === computed) {
+      var valuesIndex = valuesLength;
+      while (valuesIndex--) {
+        if (values[valuesIndex] === computed) {
+          continue outer;
+        }
+      }
+      result.push(value);
+    }
+    else if (!includes(values, computed, comparator)) {
+      result.push(value);
+    }
+  }
+  return result;
+}
+
+module.exports = baseDifference;
+
+},{"./_SetCache":79,"./_arrayIncludes":89,"./_arrayIncludesWith":90,"./_arrayMap":91,"./_baseUnary":137,"./_cacheHas":139}],108:[function(require,module,exports){
 var baseForOwn = require('./_baseForOwn'),
     createBaseEach = require('./_createBaseEach');
 
@@ -23297,7 +24626,7 @@ var baseEach = createBaseEach(baseForOwn);
 
 module.exports = baseEach;
 
-},{"./_baseForOwn":98,"./_createBaseEach":139}],95:[function(require,module,exports){
+},{"./_baseForOwn":113,"./_createBaseEach":159}],109:[function(require,module,exports){
 /**
  * The base implementation of methods like `_.find` and `_.findKey`, without
  * support for iteratee shorthands, which iterates over `collection` using
@@ -23307,7 +24636,8 @@ module.exports = baseEach;
  * @param {Array|Object} collection The collection to search.
  * @param {Function} predicate The function invoked per iteration.
  * @param {Function} eachFunc The function to iterate over `collection`.
- * @param {boolean} [retKey] Specify returning the key of the found element instead of the element itself.
+ * @param {boolean} [retKey] Specify returning the key of the found element
+ *  instead of the element itself.
  * @returns {*} Returns the found element or its key, else `undefined`.
  */
 function baseFind(collection, predicate, eachFunc, retKey) {
@@ -23323,7 +24653,7 @@ function baseFind(collection, predicate, eachFunc, retKey) {
 
 module.exports = baseFind;
 
-},{}],96:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 /**
  * The base implementation of `_.findIndex` and `_.findLastIndex` without
  * support for iteratee shorthands.
@@ -23348,14 +24678,54 @@ function baseFindIndex(array, predicate, fromRight) {
 
 module.exports = baseFindIndex;
 
-},{}],97:[function(require,module,exports){
+},{}],111:[function(require,module,exports){
+var arrayPush = require('./_arrayPush'),
+    isArguments = require('./isArguments'),
+    isArray = require('./isArray'),
+    isArrayLikeObject = require('./isArrayLikeObject');
+
+/**
+ * The base implementation of `_.flatten` with support for restricting flattening.
+ *
+ * @private
+ * @param {Array} array The array to flatten.
+ * @param {number} depth The maximum recursion depth.
+ * @param {boolean} [isStrict] Restrict flattening to arrays-like objects.
+ * @param {Array} [result=[]] The initial result value.
+ * @returns {Array} Returns the new flattened array.
+ */
+function baseFlatten(array, depth, isStrict, result) {
+  result || (result = []);
+
+  var index = -1,
+      length = array.length;
+
+  while (++index < length) {
+    var value = array[index];
+    if (depth > 0 && isArrayLikeObject(value) &&
+        (isStrict || isArray(value) || isArguments(value))) {
+      if (depth > 1) {
+        // Recursively flatten arrays (susceptible to call stack limits).
+        baseFlatten(value, depth - 1, isStrict, result);
+      } else {
+        arrayPush(result, value);
+      }
+    } else if (!isStrict) {
+      result[result.length] = value;
+    }
+  }
+  return result;
+}
+
+module.exports = baseFlatten;
+
+},{"./_arrayPush":92,"./isArguments":235,"./isArray":236,"./isArrayLikeObject":238}],112:[function(require,module,exports){
 var createBaseFor = require('./_createBaseFor');
 
 /**
- * The base implementation of `baseForIn` and `baseForOwn` which iterates
- * over `object` properties returned by `keysFunc` invoking `iteratee` for
- * each property. Iteratee functions may exit iteration early by explicitly
- * returning `false`.
+ * The base implementation of `baseForOwn` which iterates over `object`
+ * properties returned by `keysFunc` invoking `iteratee` for each property.
+ * Iteratee functions may exit iteration early by explicitly returning `false`.
  *
  * @private
  * @param {Object} object The object to iterate over.
@@ -23367,7 +24737,7 @@ var baseFor = createBaseFor();
 
 module.exports = baseFor;
 
-},{"./_createBaseFor":140}],98:[function(require,module,exports){
+},{"./_createBaseFor":160}],113:[function(require,module,exports){
 var baseFor = require('./_baseFor'),
     keys = require('./keys');
 
@@ -23385,7 +24755,7 @@ function baseForOwn(object, iteratee) {
 
 module.exports = baseForOwn;
 
-},{"./_baseFor":97,"./keys":228}],99:[function(require,module,exports){
+},{"./_baseFor":112,"./keys":253}],114:[function(require,module,exports){
 var baseCastPath = require('./_baseCastPath'),
     isKey = require('./_isKey');
 
@@ -23398,7 +24768,7 @@ var baseCastPath = require('./_baseCastPath'),
  * @returns {*} Returns the resolved value.
  */
 function baseGet(object, path) {
-  path = isKey(path, object) ? [path + ''] : baseCastPath(path);
+  path = isKey(path, object) ? [path] : baseCastPath(path);
 
   var index = 0,
       length = path.length;
@@ -23411,15 +24781,38 @@ function baseGet(object, path) {
 
 module.exports = baseGet;
 
-},{"./_baseCastPath":91,"./_isKey":171}],100:[function(require,module,exports){
+},{"./_baseCastPath":104,"./_isKey":194}],115:[function(require,module,exports){
+var arrayPush = require('./_arrayPush'),
+    isArray = require('./isArray');
+
+/**
+ * The base implementation of `getAllKeys` and `getAllKeysIn` which uses
+ * `keysFunc` and `symbolsFunc` to get the enumerable property names and
+ * symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Function} keysFunc The function to get the keys of `object`.
+ * @param {Function} symbolsFunc The function to get the symbols of `object`.
+ * @returns {Array} Returns the array of property names and symbols.
+ */
+function baseGetAllKeys(object, keysFunc, symbolsFunc) {
+  var result = keysFunc(object);
+  return isArray(object)
+    ? result
+    : arrayPush(result, symbolsFunc(object));
+}
+
+module.exports = baseGetAllKeys;
+
+},{"./_arrayPush":92,"./isArray":236}],116:[function(require,module,exports){
+var getPrototype = require('./_getPrototype');
+
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
 /** Used to check objects for own properties. */
 var hasOwnProperty = objectProto.hasOwnProperty;
-
-/** Built-in value references. */
-var getPrototypeOf = Object.getPrototypeOf;
 
 /**
  * The base implementation of `_.has` without support for deep paths.
@@ -23434,12 +24827,12 @@ function baseHas(object, key) {
   // that are composed entirely of index properties, return `false` for
   // `hasOwnProperty` checks of them.
   return hasOwnProperty.call(object, key) ||
-    (typeof object == 'object' && key in object && getPrototypeOf(object) === null);
+    (typeof object == 'object' && key in object && getPrototype(object) === null);
 }
 
 module.exports = baseHas;
 
-},{}],101:[function(require,module,exports){
+},{"./_getPrototype":178}],117:[function(require,module,exports){
 /**
  * The base implementation of `_.hasIn` without support for deep paths.
  *
@@ -23454,7 +24847,36 @@ function baseHasIn(object, key) {
 
 module.exports = baseHasIn;
 
-},{}],102:[function(require,module,exports){
+},{}],118:[function(require,module,exports){
+var indexOfNaN = require('./_indexOfNaN');
+
+/**
+ * The base implementation of `_.indexOf` without `fromIndex` bounds checks.
+ *
+ * @private
+ * @param {Array} array The array to search.
+ * @param {*} value The value to search for.
+ * @param {number} fromIndex The index to search from.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ */
+function baseIndexOf(array, value, fromIndex) {
+  if (value !== value) {
+    return indexOfNaN(array, fromIndex);
+  }
+  var index = fromIndex - 1,
+      length = array.length;
+
+  while (++index < length) {
+    if (array[index] === value) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+module.exports = baseIndexOf;
+
+},{"./_indexOfNaN":187}],119:[function(require,module,exports){
 var baseIsEqualDeep = require('./_baseIsEqualDeep'),
     isObject = require('./isObject'),
     isObjectLike = require('./isObjectLike');
@@ -23486,7 +24908,7 @@ function baseIsEqual(value, other, customizer, bitmask, stack) {
 
 module.exports = baseIsEqual;
 
-},{"./_baseIsEqualDeep":103,"./isObject":220,"./isObjectLike":221}],103:[function(require,module,exports){
+},{"./_baseIsEqualDeep":120,"./isObject":245,"./isObjectLike":246}],120:[function(require,module,exports){
 var Stack = require('./_Stack'),
     equalArrays = require('./_equalArrays'),
     equalByTag = require('./_equalByTag'),
@@ -23520,7 +24942,8 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * @param {Object} other The other object to compare.
  * @param {Function} equalFunc The function to determine equivalents of values.
  * @param {Function} [customizer] The function to customize comparisons.
- * @param {number} [bitmask] The bitmask of comparison flags. See `baseIsEqual` for more details.
+ * @param {number} [bitmask] The bitmask of comparison flags. See `baseIsEqual`
+ *  for more details.
  * @param {Object} [stack] Tracks traversed `object` and `other` objects.
  * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
  */
@@ -23553,8 +24976,11 @@ function baseIsEqualDeep(object, other, equalFunc, customizer, bitmask, stack) {
         othIsWrapped = othIsObj && hasOwnProperty.call(other, '__wrapped__');
 
     if (objIsWrapped || othIsWrapped) {
+      var objUnwrapped = objIsWrapped ? object.value() : object,
+          othUnwrapped = othIsWrapped ? other.value() : other;
+
       stack || (stack = new Stack);
-      return equalFunc(objIsWrapped ? object.value() : object, othIsWrapped ? other.value() : other, customizer, bitmask, stack);
+      return equalFunc(objUnwrapped, othUnwrapped, customizer, bitmask, stack);
     }
   }
   if (!isSameTag) {
@@ -23566,7 +24992,7 @@ function baseIsEqualDeep(object, other, equalFunc, customizer, bitmask, stack) {
 
 module.exports = baseIsEqualDeep;
 
-},{"./_Stack":69,"./_equalArrays":148,"./_equalByTag":149,"./_equalObjects":150,"./_getTag":158,"./_isHostObject":168,"./isArray":211,"./isTypedArray":226}],104:[function(require,module,exports){
+},{"./_Stack":80,"./_equalArrays":168,"./_equalByTag":169,"./_equalObjects":170,"./_getTag":180,"./_isHostObject":191,"./isArray":236,"./isTypedArray":251}],121:[function(require,module,exports){
 var Stack = require('./_Stack'),
     baseIsEqual = require('./_baseIsEqual');
 
@@ -23613,9 +25039,10 @@ function baseIsMatch(object, source, matchData, customizer) {
         return false;
       }
     } else {
-      var stack = new Stack,
-          result = customizer ? customizer(objValue, srcValue, key, object, source, stack) : undefined;
-
+      var stack = new Stack;
+      if (customizer) {
+        var result = customizer(objValue, srcValue, key, object, source, stack);
+      }
       if (!(result === undefined
             ? baseIsEqual(srcValue, objValue, customizer, UNORDERED_COMPARE_FLAG | PARTIAL_COMPARE_FLAG, stack)
             : result
@@ -23629,7 +25056,7 @@ function baseIsMatch(object, source, matchData, customizer) {
 
 module.exports = baseIsMatch;
 
-},{"./_Stack":69,"./_baseIsEqual":102}],105:[function(require,module,exports){
+},{"./_Stack":80,"./_baseIsEqual":119}],122:[function(require,module,exports){
 var baseMatches = require('./_baseMatches'),
     baseMatchesProperty = require('./_baseMatchesProperty'),
     identity = require('./identity'),
@@ -23644,14 +25071,15 @@ var baseMatches = require('./_baseMatches'),
  * @returns {Function} Returns the iteratee.
  */
 function baseIteratee(value) {
-  var type = typeof value;
-  if (type == 'function') {
+  // Don't store the `typeof` result in a variable to avoid a JIT bug in Safari 9.
+  // See https://bugs.webkit.org/show_bug.cgi?id=156034 for more details.
+  if (typeof value == 'function') {
     return value;
   }
   if (value == null) {
     return identity;
   }
-  if (type == 'object') {
+  if (typeof value == 'object') {
     return isArray(value)
       ? baseMatchesProperty(value[0], value[1])
       : baseMatches(value);
@@ -23661,7 +25089,7 @@ function baseIteratee(value) {
 
 module.exports = baseIteratee;
 
-},{"./_baseMatches":110,"./_baseMatchesProperty":111,"./identity":209,"./isArray":211,"./property":235}],106:[function(require,module,exports){
+},{"./_baseMatches":127,"./_baseMatchesProperty":128,"./identity":234,"./isArray":236,"./property":261}],123:[function(require,module,exports){
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeKeys = Object.keys;
 
@@ -23679,7 +25107,7 @@ function baseKeys(object) {
 
 module.exports = baseKeys;
 
-},{}],107:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 var Reflect = require('./_Reflect'),
     iteratorToArray = require('./_iteratorToArray');
 
@@ -23717,9 +25145,9 @@ if (enumerate && !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf')) {
 
 module.exports = baseKeysIn;
 
-},{"./_Reflect":67,"./_iteratorToArray":176}],108:[function(require,module,exports){
+},{"./_Reflect":77,"./_iteratorToArray":199}],125:[function(require,module,exports){
 /**
- * The function whose prototype all chaining wrappers inherit from.
+ * The function whose prototype chain sequence wrappers inherit from.
  *
  * @private
  */
@@ -23729,7 +25157,7 @@ function baseLodash() {
 
 module.exports = baseLodash;
 
-},{}],109:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 var baseEach = require('./_baseEach'),
     isArrayLike = require('./isArrayLike');
 
@@ -23753,9 +25181,10 @@ function baseMap(collection, iteratee) {
 
 module.exports = baseMap;
 
-},{"./_baseEach":94,"./isArrayLike":212}],110:[function(require,module,exports){
+},{"./_baseEach":108,"./isArrayLike":237}],127:[function(require,module,exports){
 var baseIsMatch = require('./_baseIsMatch'),
-    getMatchData = require('./_getMatchData');
+    getMatchData = require('./_getMatchData'),
+    matchesStrictComparable = require('./_matchesStrictComparable');
 
 /**
  * The base implementation of `_.matches` which doesn't clone `source`.
@@ -23767,16 +25196,7 @@ var baseIsMatch = require('./_baseIsMatch'),
 function baseMatches(source) {
   var matchData = getMatchData(source);
   if (matchData.length == 1 && matchData[0][2]) {
-    var key = matchData[0][0],
-        value = matchData[0][1];
-
-    return function(object) {
-      if (object == null) {
-        return false;
-      }
-      return object[key] === value &&
-        (value !== undefined || (key in Object(object)));
-    };
+    return matchesStrictComparable(matchData[0][0], matchData[0][1]);
   }
   return function(object) {
     return object === source || baseIsMatch(object, source, matchData);
@@ -23785,10 +25205,13 @@ function baseMatches(source) {
 
 module.exports = baseMatches;
 
-},{"./_baseIsMatch":104,"./_getMatchData":154}],111:[function(require,module,exports){
+},{"./_baseIsMatch":121,"./_getMatchData":175,"./_matchesStrictComparable":206}],128:[function(require,module,exports){
 var baseIsEqual = require('./_baseIsEqual'),
     get = require('./get'),
-    hasIn = require('./hasIn');
+    hasIn = require('./hasIn'),
+    isKey = require('./_isKey'),
+    isStrictComparable = require('./_isStrictComparable'),
+    matchesStrictComparable = require('./_matchesStrictComparable');
 
 /** Used to compose bitmasks for comparison styles. */
 var UNORDERED_COMPARE_FLAG = 1,
@@ -23803,6 +25226,9 @@ var UNORDERED_COMPARE_FLAG = 1,
  * @returns {Function} Returns the new function.
  */
 function baseMatchesProperty(path, srcValue) {
+  if (isKey(path) && isStrictComparable(srcValue)) {
+    return matchesStrictComparable(path, srcValue);
+  }
   return function(object) {
     var objValue = get(object, path);
     return (objValue === undefined && objValue === srcValue)
@@ -23813,7 +25239,7 @@ function baseMatchesProperty(path, srcValue) {
 
 module.exports = baseMatchesProperty;
 
-},{"./_baseIsEqual":102,"./get":207,"./hasIn":208}],112:[function(require,module,exports){
+},{"./_baseIsEqual":119,"./_isKey":194,"./_isStrictComparable":198,"./_matchesStrictComparable":206,"./get":232,"./hasIn":233}],129:[function(require,module,exports){
 var Stack = require('./_Stack'),
     arrayEach = require('./_arrayEach'),
     assignMergeValue = require('./_assignMergeValue'),
@@ -23831,16 +25257,16 @@ var Stack = require('./_Stack'),
  * @param {Object} source The source object.
  * @param {number} srcIndex The index of `source`.
  * @param {Function} [customizer] The function to customize merged values.
- * @param {Object} [stack] Tracks traversed source values and their merged counterparts.
+ * @param {Object} [stack] Tracks traversed source values and their merged
+ *  counterparts.
  */
 function baseMerge(object, source, srcIndex, customizer, stack) {
   if (object === source) {
     return;
   }
-  var props = (isArray(source) || isTypedArray(source))
-    ? undefined
-    : keysIn(source);
-
+  if (!(isArray(source) || isTypedArray(source))) {
+    var props = keysIn(source);
+  }
   arrayEach(props || source, function(srcValue, key) {
     if (props) {
       key = srcValue;
@@ -23865,7 +25291,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
 
 module.exports = baseMerge;
 
-},{"./_Stack":69,"./_arrayEach":77,"./_assignMergeValue":81,"./_baseMergeDeep":113,"./isArray":211,"./isObject":220,"./isTypedArray":226,"./keysIn":229}],113:[function(require,module,exports){
+},{"./_Stack":80,"./_arrayEach":88,"./_assignMergeValue":95,"./_baseMergeDeep":130,"./isArray":236,"./isObject":245,"./isTypedArray":251,"./keysIn":254}],130:[function(require,module,exports){
 var assignMergeValue = require('./_assignMergeValue'),
     baseClone = require('./_baseClone'),
     copyArray = require('./_copyArray'),
@@ -23890,7 +25316,8 @@ var assignMergeValue = require('./_assignMergeValue'),
  * @param {number} srcIndex The index of `source`.
  * @param {Function} mergeFunc The function to merge values.
  * @param {Function} [customizer] The function to customize assigned values.
- * @param {Object} [stack] Tracks traversed source values and their merged counterparts.
+ * @param {Object} [stack] Tracks traversed source values and their merged
+ *  counterparts.
  */
 function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, stack) {
   var objValue = object[key],
@@ -23918,7 +25345,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
       }
       else {
         isCommon = false;
-        newValue = baseClone(srcValue, !customizer);
+        newValue = baseClone(srcValue, true);
       }
     }
     else if (isPlainObject(srcValue) || isArguments(srcValue)) {
@@ -23927,7 +25354,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
       }
       else if (!isObject(objValue) || (srcIndex && isFunction(objValue))) {
         isCommon = false;
-        newValue = baseClone(srcValue, !customizer);
+        newValue = baseClone(srcValue, true);
       }
       else {
         newValue = objValue;
@@ -23949,7 +25376,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
 
 module.exports = baseMergeDeep;
 
-},{"./_assignMergeValue":81,"./_baseClone":92,"./_copyArray":132,"./isArguments":210,"./isArray":211,"./isArrayLikeObject":213,"./isFunction":216,"./isObject":220,"./isPlainObject":222,"./isTypedArray":226,"./toPlainObject":242}],114:[function(require,module,exports){
+},{"./_assignMergeValue":95,"./_baseClone":105,"./_copyArray":152,"./isArguments":235,"./isArray":236,"./isArrayLikeObject":238,"./isFunction":241,"./isObject":245,"./isPlainObject":247,"./isTypedArray":251,"./toPlainObject":268}],131:[function(require,module,exports){
 /**
  * The base implementation of `_.property` without support for deep paths.
  *
@@ -23965,7 +25392,7 @@ function baseProperty(key) {
 
 module.exports = baseProperty;
 
-},{}],115:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -23983,7 +25410,7 @@ function basePropertyDeep(path) {
 
 module.exports = basePropertyDeep;
 
-},{"./_baseGet":99}],116:[function(require,module,exports){
+},{"./_baseGet":114}],133:[function(require,module,exports){
 /**
  * The base implementation of `_.reduce` and `_.reduceRight`, without support
  * for iteratee shorthands, which iterates over `collection` using `eachFunc`.
@@ -23992,7 +25419,8 @@ module.exports = basePropertyDeep;
  * @param {Array|Object} collection The collection to iterate over.
  * @param {Function} iteratee The function invoked per iteration.
  * @param {*} accumulator The initial value.
- * @param {boolean} initAccum Specify using the first or last element of `collection` as the initial value.
+ * @param {boolean} initAccum Specify using the first or last element of
+ *  `collection` as the initial value.
  * @param {Function} eachFunc The function to iterate over `collection`.
  * @returns {*} Returns the accumulated value.
  */
@@ -24007,7 +25435,7 @@ function baseReduce(collection, iteratee, accumulator, initAccum, eachFunc) {
 
 module.exports = baseReduce;
 
-},{}],117:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 var identity = require('./identity'),
     metaMap = require('./_metaMap');
 
@@ -24026,40 +25454,7 @@ var baseSetData = !metaMap ? identity : function(func, data) {
 
 module.exports = baseSetData;
 
-},{"./_metaMap":184,"./identity":209}],118:[function(require,module,exports){
-/**
- * The base implementation of `_.slice` without an iteratee call guard.
- *
- * @private
- * @param {Array} array The array to slice.
- * @param {number} [start=0] The start position.
- * @param {number} [end=array.length] The end position.
- * @returns {Array} Returns the slice of `array`.
- */
-function baseSlice(array, start, end) {
-  var index = -1,
-      length = array.length;
-
-  if (start < 0) {
-    start = -start > length ? 0 : (length + start);
-  }
-  end = end > length ? length : end;
-  if (end < 0) {
-    end += length;
-  }
-  length = start > end ? 0 : ((end - start) >>> 0);
-  start >>>= 0;
-
-  var result = Array(length);
-  while (++index < length) {
-    result[index] = array[index + start];
-  }
-  return result;
-}
-
-module.exports = baseSlice;
-
-},{}],119:[function(require,module,exports){
+},{"./_metaMap":208,"./identity":234}],135:[function(require,module,exports){
 /**
  * The base implementation of `_.times` without support for iteratee shorthands
  * or max array length checks.
@@ -24081,7 +25476,7 @@ function baseTimes(n, iteratee) {
 
 module.exports = baseTimes;
 
-},{}],120:[function(require,module,exports){
+},{}],136:[function(require,module,exports){
 var arrayMap = require('./_arrayMap');
 
 /**
@@ -24101,7 +25496,23 @@ function baseToPairs(object, props) {
 
 module.exports = baseToPairs;
 
-},{"./_arrayMap":78}],121:[function(require,module,exports){
+},{"./_arrayMap":91}],137:[function(require,module,exports){
+/**
+ * The base implementation of `_.unary` without support for storing wrapper metadata.
+ *
+ * @private
+ * @param {Function} func The function to cap arguments for.
+ * @returns {Function} Returns the new function.
+ */
+function baseUnary(func) {
+  return function(value) {
+    return func(value);
+  };
+}
+
+module.exports = baseUnary;
+
+},{}],138:[function(require,module,exports){
 var arrayMap = require('./_arrayMap');
 
 /**
@@ -24122,7 +25533,63 @@ function baseValues(object, props) {
 
 module.exports = baseValues;
 
-},{"./_arrayMap":78}],122:[function(require,module,exports){
+},{"./_arrayMap":91}],139:[function(require,module,exports){
+var isKeyable = require('./_isKeyable');
+
+/** Used to stand-in for `undefined` hash values. */
+var HASH_UNDEFINED = '__lodash_hash_undefined__';
+
+/**
+ * Checks if `value` is in `cache`.
+ *
+ * @private
+ * @param {Object} cache The set cache to search.
+ * @param {*} value The value to search for.
+ * @returns {number} Returns `true` if `value` is found, else `false`.
+ */
+function cacheHas(cache, value) {
+  var map = cache.__data__;
+  if (isKeyable(value)) {
+    var data = map.__data__,
+        hash = typeof value == 'string' ? data.string : data.hash;
+
+    return hash[value] === HASH_UNDEFINED;
+  }
+  return map.has(value);
+}
+
+module.exports = cacheHas;
+
+},{"./_isKeyable":195}],140:[function(require,module,exports){
+var isKeyable = require('./_isKeyable');
+
+/** Used to stand-in for `undefined` hash values. */
+var HASH_UNDEFINED = '__lodash_hash_undefined__';
+
+/**
+ * Adds `value` to the set cache.
+ *
+ * @private
+ * @name push
+ * @memberOf SetCache
+ * @param {*} value The value to cache.
+ */
+function cachePush(value) {
+  var map = this.__data__;
+  if (isKeyable(value)) {
+    var data = map.__data__,
+        hash = typeof value == 'string' ? data.string : data.hash;
+
+    hash[value] = HASH_UNDEFINED;
+  }
+  else {
+    map.set(value, HASH_UNDEFINED);
+  }
+}
+
+module.exports = cachePush;
+
+},{"./_isKeyable":195}],141:[function(require,module,exports){
 /**
  * Checks if `value` is a global object.
  *
@@ -24136,7 +25603,7 @@ function checkGlobal(value) {
 
 module.exports = checkGlobal;
 
-},{}],123:[function(require,module,exports){
+},{}],142:[function(require,module,exports){
 var Uint8Array = require('./_Uint8Array');
 
 /**
@@ -24154,7 +25621,7 @@ function cloneArrayBuffer(arrayBuffer) {
 
 module.exports = cloneArrayBuffer;
 
-},{"./_Uint8Array":71}],124:[function(require,module,exports){
+},{"./_Uint8Array":82}],143:[function(require,module,exports){
 /**
  * Creates a clone of  `buffer`.
  *
@@ -24174,7 +25641,25 @@ function cloneBuffer(buffer, isDeep) {
 
 module.exports = cloneBuffer;
 
-},{}],125:[function(require,module,exports){
+},{}],144:[function(require,module,exports){
+var cloneArrayBuffer = require('./_cloneArrayBuffer');
+
+/**
+ * Creates a clone of `dataView`.
+ *
+ * @private
+ * @param {Object} dataView The data view to clone.
+ * @param {boolean} [isDeep] Specify a deep clone.
+ * @returns {Object} Returns the cloned data view.
+ */
+function cloneDataView(dataView, isDeep) {
+  var buffer = isDeep ? cloneArrayBuffer(dataView.buffer) : dataView.buffer;
+  return new dataView.constructor(buffer, dataView.byteOffset, dataView.byteLength);
+}
+
+module.exports = cloneDataView;
+
+},{"./_cloneArrayBuffer":142}],145:[function(require,module,exports){
 var addMapEntry = require('./_addMapEntry'),
     arrayReduce = require('./_arrayReduce'),
     mapToArray = require('./_mapToArray');
@@ -24184,15 +25669,18 @@ var addMapEntry = require('./_addMapEntry'),
  *
  * @private
  * @param {Object} map The map to clone.
+ * @param {Function} cloneFunc The function to clone values.
+ * @param {boolean} [isDeep] Specify a deep clone.
  * @returns {Object} Returns the cloned map.
  */
-function cloneMap(map) {
-  return arrayReduce(mapToArray(map), addMapEntry, new map.constructor);
+function cloneMap(map, isDeep, cloneFunc) {
+  var array = isDeep ? cloneFunc(mapToArray(map), true) : mapToArray(map);
+  return arrayReduce(array, addMapEntry, new map.constructor);
 }
 
 module.exports = cloneMap;
 
-},{"./_addMapEntry":73,"./_arrayReduce":79,"./_mapToArray":182}],126:[function(require,module,exports){
+},{"./_addMapEntry":84,"./_arrayReduce":93,"./_mapToArray":205}],146:[function(require,module,exports){
 /** Used to match `RegExp` flags from their coerced string values. */
 var reFlags = /\w*$/;
 
@@ -24211,7 +25699,7 @@ function cloneRegExp(regexp) {
 
 module.exports = cloneRegExp;
 
-},{}],127:[function(require,module,exports){
+},{}],147:[function(require,module,exports){
 var addSetEntry = require('./_addSetEntry'),
     arrayReduce = require('./_arrayReduce'),
     setToArray = require('./_setToArray');
@@ -24221,15 +25709,18 @@ var addSetEntry = require('./_addSetEntry'),
  *
  * @private
  * @param {Object} set The set to clone.
+ * @param {Function} cloneFunc The function to clone values.
+ * @param {boolean} [isDeep] Specify a deep clone.
  * @returns {Object} Returns the cloned set.
  */
-function cloneSet(set) {
-  return arrayReduce(setToArray(set), addSetEntry, new set.constructor);
+function cloneSet(set, isDeep, cloneFunc) {
+  var array = isDeep ? cloneFunc(setToArray(set), true) : setToArray(set);
+  return arrayReduce(array, addSetEntry, new set.constructor);
 }
 
 module.exports = cloneSet;
 
-},{"./_addSetEntry":74,"./_arrayReduce":79,"./_setToArray":192}],128:[function(require,module,exports){
+},{"./_addSetEntry":85,"./_arrayReduce":93,"./_setToArray":215}],148:[function(require,module,exports){
 var Symbol = require('./_Symbol');
 
 /** Used to convert symbols to primitives and strings. */
@@ -24249,7 +25740,7 @@ function cloneSymbol(symbol) {
 
 module.exports = cloneSymbol;
 
-},{"./_Symbol":70}],129:[function(require,module,exports){
+},{"./_Symbol":81}],149:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer');
 
 /**
@@ -24267,7 +25758,7 @@ function cloneTypedArray(typedArray, isDeep) {
 
 module.exports = cloneTypedArray;
 
-},{"./_cloneArrayBuffer":123}],130:[function(require,module,exports){
+},{"./_cloneArrayBuffer":142}],150:[function(require,module,exports){
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeMax = Math.max;
 
@@ -24308,7 +25799,7 @@ function composeArgs(args, partials, holders, isCurried) {
 
 module.exports = composeArgs;
 
-},{}],131:[function(require,module,exports){
+},{}],151:[function(require,module,exports){
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeMax = Math.max;
 
@@ -24351,7 +25842,7 @@ function composeArgsRight(args, partials, holders, isCurried) {
 
 module.exports = composeArgsRight;
 
-},{}],132:[function(require,module,exports){
+},{}],152:[function(require,module,exports){
 /**
  * Copies the values of `source` to `array`.
  *
@@ -24373,7 +25864,7 @@ function copyArray(source, array) {
 
 module.exports = copyArray;
 
-},{}],133:[function(require,module,exports){
+},{}],153:[function(require,module,exports){
 var copyObjectWith = require('./_copyObjectWith');
 
 /**
@@ -24381,7 +25872,7 @@ var copyObjectWith = require('./_copyObjectWith');
  *
  * @private
  * @param {Object} source The object to copy properties from.
- * @param {Array} props The property names to copy.
+ * @param {Array} props The property identifiers to copy.
  * @param {Object} [object={}] The object to copy properties to.
  * @returns {Object} Returns `object`.
  */
@@ -24391,7 +25882,7 @@ function copyObject(source, props, object) {
 
 module.exports = copyObject;
 
-},{"./_copyObjectWith":134}],134:[function(require,module,exports){
+},{"./_copyObjectWith":154}],154:[function(require,module,exports){
 var assignValue = require('./_assignValue');
 
 /**
@@ -24400,7 +25891,7 @@ var assignValue = require('./_assignValue');
  *
  * @private
  * @param {Object} source The object to copy properties from.
- * @param {Array} props The property names to copy.
+ * @param {Array} props The property identifiers to copy.
  * @param {Object} [object={}] The object to copy properties to.
  * @param {Function} [customizer] The function to customize copied values.
  * @returns {Object} Returns `object`.
@@ -24425,7 +25916,7 @@ function copyObjectWith(source, props, object, customizer) {
 
 module.exports = copyObjectWith;
 
-},{"./_assignValue":82}],135:[function(require,module,exports){
+},{"./_assignValue":96}],155:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     getSymbols = require('./_getSymbols');
 
@@ -24443,7 +25934,7 @@ function copySymbols(source, object) {
 
 module.exports = copySymbols;
 
-},{"./_copyObject":133,"./_getSymbols":157}],136:[function(require,module,exports){
+},{"./_copyObject":153,"./_getSymbols":179}],156:[function(require,module,exports){
 /**
  * Gets the number of `placeholder` occurrences in `array`.
  *
@@ -24466,7 +25957,7 @@ function countHolders(array, placeholder) {
 
 module.exports = countHolders;
 
-},{}],137:[function(require,module,exports){
+},{}],157:[function(require,module,exports){
 var arrayAggregator = require('./_arrayAggregator'),
     baseAggregator = require('./_baseAggregator'),
     baseIteratee = require('./_baseIteratee'),
@@ -24491,7 +25982,7 @@ function createAggregator(setter, initializer) {
 
 module.exports = createAggregator;
 
-},{"./_arrayAggregator":76,"./_baseAggregator":88,"./_baseIteratee":105,"./isArray":211}],138:[function(require,module,exports){
+},{"./_arrayAggregator":87,"./_baseAggregator":102,"./_baseIteratee":122,"./isArray":236}],158:[function(require,module,exports){
 var isIterateeCall = require('./_isIterateeCall'),
     rest = require('./rest');
 
@@ -24530,7 +26021,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"./_isIterateeCall":170,"./rest":237}],139:[function(require,module,exports){
+},{"./_isIterateeCall":193,"./rest":263}],159:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike');
 
 /**
@@ -24564,9 +26055,9 @@ function createBaseEach(eachFunc, fromRight) {
 
 module.exports = createBaseEach;
 
-},{"./isArrayLike":212}],140:[function(require,module,exports){
+},{"./isArrayLike":237}],160:[function(require,module,exports){
 /**
- * Creates a base function for methods like `_.forIn`.
+ * Creates a base function for methods like `_.forIn` and `_.forOwn`.
  *
  * @private
  * @param {boolean} [fromRight] Specify iterating from right to left.
@@ -24591,7 +26082,7 @@ function createBaseFor(fromRight) {
 
 module.exports = createBaseFor;
 
-},{}],141:[function(require,module,exports){
+},{}],161:[function(require,module,exports){
 var createCtorWrapper = require('./_createCtorWrapper'),
     root = require('./_root');
 
@@ -24604,7 +26095,8 @@ var BIND_FLAG = 1;
  *
  * @private
  * @param {Function} func The function to wrap.
- * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper` for more details.
+ * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
+ *  for more details.
  * @param {*} [thisArg] The `this` binding of `func`.
  * @returns {Function} Returns the new wrapped function.
  */
@@ -24621,7 +26113,7 @@ function createBaseWrapper(func, bitmask, thisArg) {
 
 module.exports = createBaseWrapper;
 
-},{"./_createCtorWrapper":142,"./_root":190}],142:[function(require,module,exports){
+},{"./_createCtorWrapper":162,"./_root":213}],162:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
     isObject = require('./isObject');
 
@@ -24635,8 +26127,8 @@ var baseCreate = require('./_baseCreate'),
  */
 function createCtorWrapper(Ctor) {
   return function() {
-    // Use a `switch` statement to work with class constructors.
-    // See http://ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+    // Use a `switch` statement to work with class constructors. See
+    // http://ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
     // for more details.
     var args = arguments;
     switch (args.length) {
@@ -24660,7 +26152,7 @@ function createCtorWrapper(Ctor) {
 
 module.exports = createCtorWrapper;
 
-},{"./_baseCreate":93,"./isObject":220}],143:[function(require,module,exports){
+},{"./_baseCreate":106,"./isObject":245}],163:[function(require,module,exports){
 var apply = require('./_apply'),
     createCtorWrapper = require('./_createCtorWrapper'),
     createHybridWrapper = require('./_createHybridWrapper'),
@@ -24674,7 +26166,8 @@ var apply = require('./_apply'),
  *
  * @private
  * @param {Function} func The function to wrap.
- * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper` for more details.
+ * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
+ *  for more details.
  * @param {number} arity The arity of `func`.
  * @returns {Function} Returns the new wrapped function.
  */
@@ -24708,7 +26201,7 @@ function createCurryWrapper(func, bitmask, arity) {
 
 module.exports = createCurryWrapper;
 
-},{"./_apply":75,"./_createCtorWrapper":142,"./_createHybridWrapper":144,"./_createRecurryWrapper":146,"./_getPlaceholder":156,"./_replaceHolders":189,"./_root":190}],144:[function(require,module,exports){
+},{"./_apply":86,"./_createCtorWrapper":162,"./_createHybridWrapper":164,"./_createRecurryWrapper":166,"./_getPlaceholder":177,"./_replaceHolders":212,"./_root":213}],164:[function(require,module,exports){
 var composeArgs = require('./_composeArgs'),
     composeArgsRight = require('./_composeArgsRight'),
     countHolders = require('./_countHolders'),
@@ -24733,11 +26226,14 @@ var BIND_FLAG = 1,
  *
  * @private
  * @param {Function|string} func The function or method name to wrap.
- * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper` for more details.
+ * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
+ *  for more details.
  * @param {*} [thisArg] The `this` binding of `func`.
- * @param {Array} [partials] The arguments to prepend to those provided to the new function.
+ * @param {Array} [partials] The arguments to prepend to those provided to
+ *  the new function.
  * @param {Array} [holders] The `partials` placeholder indexes.
- * @param {Array} [partialsRight] The arguments to append to those provided to the new function.
+ * @param {Array} [partialsRight] The arguments to append to those provided
+ *  to the new function.
  * @param {Array} [holdersRight] The `partialsRight` placeholder indexes.
  * @param {Array} [argPos] The argument positions of the new function.
  * @param {number} [ary] The arity cap of `func`.
@@ -24800,7 +26296,7 @@ function createHybridWrapper(func, bitmask, thisArg, partials, holders, partials
 
 module.exports = createHybridWrapper;
 
-},{"./_composeArgs":130,"./_composeArgsRight":131,"./_countHolders":136,"./_createCtorWrapper":142,"./_createRecurryWrapper":146,"./_getPlaceholder":156,"./_reorder":188,"./_replaceHolders":189,"./_root":190}],145:[function(require,module,exports){
+},{"./_composeArgs":150,"./_composeArgsRight":151,"./_countHolders":156,"./_createCtorWrapper":162,"./_createRecurryWrapper":166,"./_getPlaceholder":177,"./_reorder":211,"./_replaceHolders":212,"./_root":213}],165:[function(require,module,exports){
 var apply = require('./_apply'),
     createCtorWrapper = require('./_createCtorWrapper'),
     root = require('./_root');
@@ -24809,15 +26305,16 @@ var apply = require('./_apply'),
 var BIND_FLAG = 1;
 
 /**
- * Creates a function that wraps `func` to invoke it with the optional `this`
- * binding of `thisArg` and the `partials` prepended to those provided to
- * the wrapper.
+ * Creates a function that wraps `func` to invoke it with the `this` binding
+ * of `thisArg` and `partials` prepended to the arguments it receives.
  *
  * @private
  * @param {Function} func The function to wrap.
- * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper` for more details.
+ * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
+ *  for more details.
  * @param {*} thisArg The `this` binding of `func`.
- * @param {Array} partials The arguments to prepend to those provided to the new function.
+ * @param {Array} partials The arguments to prepend to those provided to
+ *  the new function.
  * @returns {Function} Returns the new wrapped function.
  */
 function createPartialWrapper(func, bitmask, thisArg, partials) {
@@ -24845,7 +26342,7 @@ function createPartialWrapper(func, bitmask, thisArg, partials) {
 
 module.exports = createPartialWrapper;
 
-},{"./_apply":75,"./_createCtorWrapper":142,"./_root":190}],146:[function(require,module,exports){
+},{"./_apply":86,"./_createCtorWrapper":162,"./_root":213}],166:[function(require,module,exports){
 var copyArray = require('./_copyArray'),
     isLaziable = require('./_isLaziable'),
     setData = require('./_setData');
@@ -24863,11 +26360,13 @@ var BIND_FLAG = 1,
  *
  * @private
  * @param {Function} func The function to wrap.
- * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper` for more details.
+ * @param {number} bitmask The bitmask of wrapper flags. See `createWrapper`
+ *  for more details.
  * @param {Function} wrapFunc The function to create the `func` wrapper.
  * @param {*} placeholder The placeholder value.
  * @param {*} [thisArg] The `this` binding of `func`.
- * @param {Array} [partials] The arguments to prepend to those provided to the new function.
+ * @param {Array} [partials] The arguments to prepend to those provided to
+ *  the new function.
  * @param {Array} [holders] The `partials` placeholder indexes.
  * @param {Array} [argPos] The argument positions of the new function.
  * @param {number} [ary] The arity cap of `func`.
@@ -24903,7 +26402,7 @@ function createRecurryWrapper(func, bitmask, wrapFunc, placeholder, thisArg, par
 
 module.exports = createRecurryWrapper;
 
-},{"./_copyArray":132,"./_isLaziable":173,"./_setData":191}],147:[function(require,module,exports){
+},{"./_copyArray":152,"./_isLaziable":196,"./_setData":214}],167:[function(require,module,exports){
 var baseSetData = require('./_baseSetData'),
     createBaseWrapper = require('./_createBaseWrapper'),
     createCurryWrapper = require('./_createCurryWrapper'),
@@ -25010,7 +26509,7 @@ function createWrapper(func, bitmask, thisArg, partials, holders, argPos, ary, a
 
 module.exports = createWrapper;
 
-},{"./_baseSetData":117,"./_createBaseWrapper":141,"./_createCurryWrapper":143,"./_createHybridWrapper":144,"./_createPartialWrapper":145,"./_getData":151,"./_mergeData":183,"./_setData":191,"./toInteger":239}],148:[function(require,module,exports){
+},{"./_baseSetData":134,"./_createBaseWrapper":161,"./_createCurryWrapper":163,"./_createHybridWrapper":164,"./_createPartialWrapper":165,"./_getData":172,"./_mergeData":207,"./_setData":214,"./toInteger":265}],168:[function(require,module,exports){
 var arraySome = require('./_arraySome');
 
 /** Used to compose bitmasks for comparison styles. */
@@ -25026,7 +26525,8 @@ var UNORDERED_COMPARE_FLAG = 1,
  * @param {Array} other The other array to compare.
  * @param {Function} equalFunc The function to determine equivalents of values.
  * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual` for more details.
+ * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
+ *  for more details.
  * @param {Object} stack Tracks traversed `array` and `other` objects.
  * @returns {boolean} Returns `true` if the arrays are equivalent, else `false`.
  */
@@ -25068,12 +26568,16 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
     // Recursively compare arrays (susceptible to call stack limits).
     if (isUnordered) {
       if (!arraySome(other, function(othValue) {
-            return arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack);
+            return arrValue === othValue ||
+              equalFunc(arrValue, othValue, customizer, bitmask, stack);
           })) {
         result = false;
         break;
       }
-    } else if (!(arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack))) {
+    } else if (!(
+          arrValue === othValue ||
+            equalFunc(arrValue, othValue, customizer, bitmask, stack)
+        )) {
       result = false;
       break;
     }
@@ -25084,7 +26588,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
 
 module.exports = equalArrays;
 
-},{"./_arraySome":80}],149:[function(require,module,exports){
+},{"./_arraySome":94}],169:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     Uint8Array = require('./_Uint8Array'),
     equalArrays = require('./_equalArrays'),
@@ -25106,7 +26610,8 @@ var boolTag = '[object Boolean]',
     stringTag = '[object String]',
     symbolTag = '[object Symbol]';
 
-var arrayBufferTag = '[object ArrayBuffer]';
+var arrayBufferTag = '[object ArrayBuffer]',
+    dataViewTag = '[object DataView]';
 
 /** Used to convert symbols to primitives and strings. */
 var symbolProto = Symbol ? Symbol.prototype : undefined,
@@ -25125,12 +26630,21 @@ var symbolProto = Symbol ? Symbol.prototype : undefined,
  * @param {string} tag The `toStringTag` of the objects to compare.
  * @param {Function} equalFunc The function to determine equivalents of values.
  * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual` for more details.
+ * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
+ *  for more details.
  * @param {Object} stack Tracks traversed `object` and `other` objects.
  * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
  */
 function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
   switch (tag) {
+    case dataViewTag:
+      if ((object.byteLength != other.byteLength) ||
+          (object.byteOffset != other.byteOffset)) {
+        return false;
+      }
+      object = object.buffer;
+      other = other.buffer;
+
     case arrayBufferTag:
       if ((object.byteLength != other.byteLength) ||
           !equalFunc(new Uint8Array(object), new Uint8Array(other))) {
@@ -25140,8 +26654,9 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
 
     case boolTag:
     case dateTag:
-      // Coerce dates and booleans to numbers, dates to milliseconds and booleans
-      // to `1` or `0` treating invalid dates coerced to `NaN` as not equal.
+      // Coerce dates and booleans to numbers, dates to milliseconds and
+      // booleans to `1` or `0` treating invalid dates coerced to `NaN` as
+      // not equal.
       return +object == +other;
 
     case errorTag:
@@ -25153,8 +26668,9 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
 
     case regexpTag:
     case stringTag:
-      // Coerce regexes to strings and treat strings primitives and string
-      // objects as equal. See https://es5.github.io/#x15.10.6.4 for more details.
+      // Coerce regexes to strings and treat strings, primitives and objects,
+      // as equal. See http://www.ecma-international.org/ecma-262/6.0/#sec-regexp.prototype.tostring
+      // for more details.
       return object == (other + '');
 
     case mapTag:
@@ -25172,8 +26688,11 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
       if (stacked) {
         return stacked == other;
       }
+      bitmask |= UNORDERED_COMPARE_FLAG;
+      stack.set(object, other);
+
       // Recursively compare objects (susceptible to call stack limits).
-      return equalArrays(convert(object), convert(other), equalFunc, customizer, bitmask | UNORDERED_COMPARE_FLAG, stack.set(object, other));
+      return equalArrays(convert(object), convert(other), equalFunc, customizer, bitmask, stack);
 
     case symbolTag:
       if (symbolValueOf) {
@@ -25185,7 +26704,7 @@ function equalByTag(object, other, tag, equalFunc, customizer, bitmask, stack) {
 
 module.exports = equalByTag;
 
-},{"./_Symbol":70,"./_Uint8Array":71,"./_equalArrays":148,"./_mapToArray":182,"./_setToArray":192}],150:[function(require,module,exports){
+},{"./_Symbol":81,"./_Uint8Array":82,"./_equalArrays":168,"./_mapToArray":205,"./_setToArray":215}],170:[function(require,module,exports){
 var baseHas = require('./_baseHas'),
     keys = require('./keys');
 
@@ -25201,7 +26720,8 @@ var PARTIAL_COMPARE_FLAG = 2;
  * @param {Object} other The other object to compare.
  * @param {Function} equalFunc The function to determine equivalents of values.
  * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual` for more details.
+ * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
+ *  for more details.
  * @param {Object} stack Tracks traversed `object` and `other` objects.
  * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
  */
@@ -25269,7 +26789,25 @@ function equalObjects(object, other, equalFunc, customizer, bitmask, stack) {
 
 module.exports = equalObjects;
 
-},{"./_baseHas":100,"./keys":228}],151:[function(require,module,exports){
+},{"./_baseHas":116,"./keys":253}],171:[function(require,module,exports){
+var baseGetAllKeys = require('./_baseGetAllKeys'),
+    getSymbols = require('./_getSymbols'),
+    keys = require('./keys');
+
+/**
+ * Creates an array of own enumerable property names and symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names and symbols.
+ */
+function getAllKeys(object) {
+  return baseGetAllKeys(object, keys, getSymbols);
+}
+
+module.exports = getAllKeys;
+
+},{"./_baseGetAllKeys":115,"./_getSymbols":179,"./keys":253}],172:[function(require,module,exports){
 var metaMap = require('./_metaMap'),
     noop = require('./noop');
 
@@ -25286,7 +26824,7 @@ var getData = !metaMap ? noop : function(func) {
 
 module.exports = getData;
 
-},{"./_metaMap":184,"./noop":233}],152:[function(require,module,exports){
+},{"./_metaMap":208,"./noop":259}],173:[function(require,module,exports){
 var realNames = require('./_realNames');
 
 /** Used for built-in method references. */
@@ -25319,14 +26857,15 @@ function getFuncName(func) {
 
 module.exports = getFuncName;
 
-},{"./_realNames":187}],153:[function(require,module,exports){
+},{"./_realNames":210}],174:[function(require,module,exports){
 var baseProperty = require('./_baseProperty');
 
 /**
  * Gets the "length" property value of `object`.
  *
- * **Note:** This function is used to avoid a [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792)
- * that affects Safari on at least iOS 8.1-8.3 ARM64.
+ * **Note:** This function is used to avoid a
+ * [JIT bug](https://bugs.webkit.org/show_bug.cgi?id=142792) that affects
+ * Safari on at least iOS 8.1-8.3 ARM64.
  *
  * @private
  * @param {Object} object The object to query.
@@ -25336,7 +26875,7 @@ var getLength = baseProperty('length');
 
 module.exports = getLength;
 
-},{"./_baseProperty":114}],154:[function(require,module,exports){
+},{"./_baseProperty":131}],175:[function(require,module,exports){
 var isStrictComparable = require('./_isStrictComparable'),
     toPairs = require('./toPairs');
 
@@ -25359,7 +26898,7 @@ function getMatchData(object) {
 
 module.exports = getMatchData;
 
-},{"./_isStrictComparable":175,"./toPairs":241}],155:[function(require,module,exports){
+},{"./_isStrictComparable":198,"./toPairs":267}],176:[function(require,module,exports){
 var isNative = require('./isNative');
 
 /**
@@ -25377,7 +26916,7 @@ function getNative(object, key) {
 
 module.exports = getNative;
 
-},{"./isNative":218}],156:[function(require,module,exports){
+},{"./isNative":243}],177:[function(require,module,exports){
 /**
  * Gets the argument placeholder value for `func`.
  *
@@ -25392,50 +26931,82 @@ function getPlaceholder(func) {
 
 module.exports = getPlaceholder;
 
-},{}],157:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeGetPrototype = Object.getPrototypeOf;
+
+/**
+ * Gets the `[[Prototype]]` of `value`.
+ *
+ * @private
+ * @param {*} value The value to query.
+ * @returns {null|Object} Returns the `[[Prototype]]`.
+ */
+function getPrototype(value) {
+  return nativeGetPrototype(Object(value));
+}
+
+module.exports = getPrototype;
+
+},{}],179:[function(require,module,exports){
 /** Built-in value references. */
 var getOwnPropertySymbols = Object.getOwnPropertySymbols;
 
 /**
- * Creates an array of the own symbol properties of `object`.
+ * Creates an array of the own enumerable symbol properties of `object`.
  *
  * @private
  * @param {Object} object The object to query.
  * @returns {Array} Returns the array of symbols.
  */
-var getSymbols = getOwnPropertySymbols || function() {
-  return [];
-};
+function getSymbols(object) {
+  // Coerce `object` to an object to avoid non-object errors in V8.
+  // See https://bugs.chromium.org/p/v8/issues/detail?id=3443 for more details.
+  return getOwnPropertySymbols(Object(object));
+}
+
+// Fallback for IE < 11.
+if (!getOwnPropertySymbols) {
+  getSymbols = function() {
+    return [];
+  };
+}
 
 module.exports = getSymbols;
 
-},{}],158:[function(require,module,exports){
-var Map = require('./_Map'),
+},{}],180:[function(require,module,exports){
+var DataView = require('./_DataView'),
+    Map = require('./_Map'),
+    Promise = require('./_Promise'),
     Set = require('./_Set'),
-    WeakMap = require('./_WeakMap');
+    WeakMap = require('./_WeakMap'),
+    toSource = require('./_toSource');
 
 /** `Object#toString` result references. */
 var mapTag = '[object Map]',
     objectTag = '[object Object]',
+    promiseTag = '[object Promise]',
     setTag = '[object Set]',
     weakMapTag = '[object WeakMap]';
+
+var dataViewTag = '[object DataView]';
 
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
-/** Used to resolve the decompiled source of functions. */
-var funcToString = Function.prototype.toString;
-
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
 
 /** Used to detect maps, sets, and weakmaps. */
-var mapCtorString = Map ? funcToString.call(Map) : '',
-    setCtorString = Set ? funcToString.call(Set) : '',
-    weakMapCtorString = WeakMap ? funcToString.call(WeakMap) : '';
+var dataViewCtorString = toSource(DataView),
+    mapCtorString = toSource(Map),
+    promiseCtorString = toSource(Promise),
+    setCtorString = toSource(Set),
+    weakMapCtorString = toSource(WeakMap);
 
 /**
  * Gets the `toStringTag` of `value`.
@@ -25448,18 +27019,23 @@ function getTag(value) {
   return objectToString.call(value);
 }
 
-// Fallback for IE 11 providing `toStringTag` values for maps, sets, and weakmaps.
-if ((Map && getTag(new Map) != mapTag) ||
+// Fallback for data views, maps, sets, and weak maps in IE 11,
+// for data views in Edge, and promises in Node.js.
+if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
+    (Map && getTag(new Map) != mapTag) ||
+    (Promise && getTag(Promise.resolve()) != promiseTag) ||
     (Set && getTag(new Set) != setTag) ||
     (WeakMap && getTag(new WeakMap) != weakMapTag)) {
   getTag = function(value) {
     var result = objectToString.call(value),
         Ctor = result == objectTag ? value.constructor : null,
-        ctorString = typeof Ctor == 'function' ? funcToString.call(Ctor) : '';
+        ctorString = toSource(Ctor);
 
     if (ctorString) {
       switch (ctorString) {
+        case dataViewCtorString: return dataViewTag;
         case mapCtorString: return mapTag;
+        case promiseCtorString: return promiseTag;
         case setCtorString: return setTag;
         case weakMapCtorString: return weakMapTag;
       }
@@ -25470,16 +27046,14 @@ if ((Map && getTag(new Map) != mapTag) ||
 
 module.exports = getTag;
 
-},{"./_Map":65,"./_Set":68,"./_WeakMap":72}],159:[function(require,module,exports){
+},{"./_DataView":70,"./_Map":74,"./_Promise":76,"./_Set":78,"./_WeakMap":83,"./_toSource":222}],181:[function(require,module,exports){
 var baseCastPath = require('./_baseCastPath'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
     isIndex = require('./_isIndex'),
     isKey = require('./_isKey'),
     isLength = require('./isLength'),
-    isString = require('./isString'),
-    last = require('./last'),
-    parent = require('./_parent');
+    isString = require('./isString');
 
 /**
  * Checks if `path` exists on `object`.
@@ -25491,28 +27065,30 @@ var baseCastPath = require('./_baseCastPath'),
  * @returns {boolean} Returns `true` if `path` exists, else `false`.
  */
 function hasPath(object, path, hasFunc) {
-  if (object == null) {
-    return false;
-  }
-  var result = hasFunc(object, path);
-  if (!result && !isKey(path)) {
-    path = baseCastPath(path);
-    object = parent(object, path);
-    if (object != null) {
-      path = last(path);
-      result = hasFunc(object, path);
+  path = isKey(path, object) ? [path] : baseCastPath(path);
+
+  var result,
+      index = -1,
+      length = path.length;
+
+  while (++index < length) {
+    var key = path[index];
+    if (!(result = object != null && hasFunc(object, key))) {
+      break;
     }
+    object = object[key];
   }
-  var length = object ? object.length : undefined;
-  return result || (
-    !!length && isLength(length) && isIndex(path, length) &&
-    (isArray(object) || isString(object) || isArguments(object))
-  );
+  if (result) {
+    return result;
+  }
+  var length = object ? object.length : 0;
+  return !!length && isLength(length) && isIndex(key, length) &&
+    (isArray(object) || isString(object) || isArguments(object));
 }
 
 module.exports = hasPath;
 
-},{"./_baseCastPath":91,"./_isIndex":169,"./_isKey":171,"./_parent":186,"./isArguments":210,"./isArray":211,"./isLength":217,"./isString":224,"./last":230}],160:[function(require,module,exports){
+},{"./_baseCastPath":104,"./_isIndex":192,"./_isKey":194,"./isArguments":235,"./isArray":236,"./isLength":242,"./isString":249}],182:[function(require,module,exports){
 var hashHas = require('./_hashHas');
 
 /**
@@ -25529,7 +27105,7 @@ function hashDelete(hash, key) {
 
 module.exports = hashDelete;
 
-},{"./_hashHas":162}],161:[function(require,module,exports){
+},{"./_hashHas":184}],183:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -25559,7 +27135,7 @@ function hashGet(hash, key) {
 
 module.exports = hashGet;
 
-},{"./_nativeCreate":185}],162:[function(require,module,exports){
+},{"./_nativeCreate":209}],184:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used for built-in method references. */
@@ -25582,7 +27158,7 @@ function hashHas(hash, key) {
 
 module.exports = hashHas;
 
-},{"./_nativeCreate":185}],163:[function(require,module,exports){
+},{"./_nativeCreate":209}],185:[function(require,module,exports){
 var nativeCreate = require('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -25602,7 +27178,7 @@ function hashSet(hash, key, value) {
 
 module.exports = hashSet;
 
-},{"./_nativeCreate":185}],164:[function(require,module,exports){
+},{"./_nativeCreate":209}],186:[function(require,module,exports){
 var baseTimes = require('./_baseTimes'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
@@ -25628,7 +27204,32 @@ function indexKeys(object) {
 
 module.exports = indexKeys;
 
-},{"./_baseTimes":119,"./isArguments":210,"./isArray":211,"./isLength":217,"./isString":224}],165:[function(require,module,exports){
+},{"./_baseTimes":135,"./isArguments":235,"./isArray":236,"./isLength":242,"./isString":249}],187:[function(require,module,exports){
+/**
+ * Gets the index at which the first occurrence of `NaN` is found in `array`.
+ *
+ * @private
+ * @param {Array} array The array to search.
+ * @param {number} fromIndex The index to search from.
+ * @param {boolean} [fromRight] Specify iterating from right to left.
+ * @returns {number} Returns the index of the matched `NaN`, else `-1`.
+ */
+function indexOfNaN(array, fromIndex, fromRight) {
+  var length = array.length,
+      index = fromIndex + (fromRight ? 0 : -1);
+
+  while ((fromRight ? index-- : ++index < length)) {
+    var other = array[index];
+    if (other !== other) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+module.exports = indexOfNaN;
+
+},{}],188:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -25656,8 +27257,9 @@ function initCloneArray(array) {
 
 module.exports = initCloneArray;
 
-},{}],166:[function(require,module,exports){
+},{}],189:[function(require,module,exports){
 var cloneArrayBuffer = require('./_cloneArrayBuffer'),
+    cloneDataView = require('./_cloneDataView'),
     cloneMap = require('./_cloneMap'),
     cloneRegExp = require('./_cloneRegExp'),
     cloneSet = require('./_cloneSet'),
@@ -25675,6 +27277,7 @@ var boolTag = '[object Boolean]',
     symbolTag = '[object Symbol]';
 
 var arrayBufferTag = '[object ArrayBuffer]',
+    dataViewTag = '[object DataView]',
     float32Tag = '[object Float32Array]',
     float64Tag = '[object Float64Array]',
     int8Tag = '[object Int8Array]',
@@ -25694,10 +27297,11 @@ var arrayBufferTag = '[object ArrayBuffer]',
  * @private
  * @param {Object} object The object to clone.
  * @param {string} tag The `toStringTag` of the object to clone.
+ * @param {Function} cloneFunc The function to clone values.
  * @param {boolean} [isDeep] Specify a deep clone.
  * @returns {Object} Returns the initialized clone.
  */
-function initCloneByTag(object, tag, isDeep) {
+function initCloneByTag(object, tag, cloneFunc, isDeep) {
   var Ctor = object.constructor;
   switch (tag) {
     case arrayBufferTag:
@@ -25707,13 +27311,16 @@ function initCloneByTag(object, tag, isDeep) {
     case dateTag:
       return new Ctor(+object);
 
+    case dataViewTag:
+      return cloneDataView(object, isDeep);
+
     case float32Tag: case float64Tag:
     case int8Tag: case int16Tag: case int32Tag:
     case uint8Tag: case uint8ClampedTag: case uint16Tag: case uint32Tag:
       return cloneTypedArray(object, isDeep);
 
     case mapTag:
-      return cloneMap(object);
+      return cloneMap(object, isDeep, cloneFunc);
 
     case numberTag:
     case stringTag:
@@ -25723,7 +27330,7 @@ function initCloneByTag(object, tag, isDeep) {
       return cloneRegExp(object);
 
     case setTag:
-      return cloneSet(object);
+      return cloneSet(object, isDeep, cloneFunc);
 
     case symbolTag:
       return cloneSymbol(object);
@@ -25732,12 +27339,10 @@ function initCloneByTag(object, tag, isDeep) {
 
 module.exports = initCloneByTag;
 
-},{"./_cloneArrayBuffer":123,"./_cloneMap":125,"./_cloneRegExp":126,"./_cloneSet":127,"./_cloneSymbol":128,"./_cloneTypedArray":129}],167:[function(require,module,exports){
+},{"./_cloneArrayBuffer":142,"./_cloneDataView":144,"./_cloneMap":145,"./_cloneRegExp":146,"./_cloneSet":147,"./_cloneSymbol":148,"./_cloneTypedArray":149}],190:[function(require,module,exports){
 var baseCreate = require('./_baseCreate'),
+    getPrototype = require('./_getPrototype'),
     isPrototype = require('./_isPrototype');
-
-/** Built-in value references. */
-var getPrototypeOf = Object.getPrototypeOf;
 
 /**
  * Initializes an object clone.
@@ -25748,13 +27353,13 @@ var getPrototypeOf = Object.getPrototypeOf;
  */
 function initCloneObject(object) {
   return (typeof object.constructor == 'function' && !isPrototype(object))
-    ? baseCreate(getPrototypeOf(object))
+    ? baseCreate(getPrototype(object))
     : {};
 }
 
 module.exports = initCloneObject;
 
-},{"./_baseCreate":93,"./_isPrototype":174}],168:[function(require,module,exports){
+},{"./_baseCreate":106,"./_getPrototype":178,"./_isPrototype":197}],191:[function(require,module,exports){
 /**
  * Checks if `value` is a host object in IE < 9.
  *
@@ -25776,7 +27381,7 @@ function isHostObject(value) {
 
 module.exports = isHostObject;
 
-},{}],169:[function(require,module,exports){
+},{}],192:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -25799,7 +27404,7 @@ function isIndex(value, length) {
 
 module.exports = isIndex;
 
-},{}],170:[function(require,module,exports){
+},{}],193:[function(require,module,exports){
 var eq = require('./eq'),
     isArrayLike = require('./isArrayLike'),
     isIndex = require('./_isIndex'),
@@ -25812,7 +27417,8 @@ var eq = require('./eq'),
  * @param {*} value The potential iteratee value argument.
  * @param {*} index The potential iteratee index or key argument.
  * @param {*} object The potential iteratee object argument.
- * @returns {boolean} Returns `true` if the arguments are from an iteratee call, else `false`.
+ * @returns {boolean} Returns `true` if the arguments are from an iteratee call,
+ *  else `false`.
  */
 function isIterateeCall(value, index, object) {
   if (!isObject(object)) {
@@ -25820,8 +27426,9 @@ function isIterateeCall(value, index, object) {
   }
   var type = typeof index;
   if (type == 'number'
-      ? (isArrayLike(object) && isIndex(index, object.length))
-      : (type == 'string' && index in object)) {
+        ? (isArrayLike(object) && isIndex(index, object.length))
+        : (type == 'string' && index in object)
+      ) {
     return eq(object[index], value);
   }
   return false;
@@ -25829,8 +27436,9 @@ function isIterateeCall(value, index, object) {
 
 module.exports = isIterateeCall;
 
-},{"./_isIndex":169,"./eq":203,"./isArrayLike":212,"./isObject":220}],171:[function(require,module,exports){
-var isArray = require('./isArray');
+},{"./_isIndex":192,"./eq":228,"./isArrayLike":237,"./isObject":245}],194:[function(require,module,exports){
+var isArray = require('./isArray'),
+    isSymbol = require('./isSymbol');
 
 /** Used to match property names within property paths. */
 var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,
@@ -25845,17 +27453,18 @@ var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,
  * @returns {boolean} Returns `true` if `value` is a property name, else `false`.
  */
 function isKey(value, object) {
-  if (typeof value == 'number') {
+  var type = typeof value;
+  if (type == 'number' || type == 'symbol') {
     return true;
   }
   return !isArray(value) &&
-    (reIsPlainProp.test(value) || !reIsDeepProp.test(value) ||
+    (isSymbol(value) || reIsPlainProp.test(value) || !reIsDeepProp.test(value) ||
       (object != null && value in Object(object)));
 }
 
 module.exports = isKey;
 
-},{"./isArray":211}],172:[function(require,module,exports){
+},{"./isArray":236,"./isSymbol":250}],195:[function(require,module,exports){
 /**
  * Checks if `value` is suitable for use as unique object key.
  *
@@ -25871,7 +27480,7 @@ function isKeyable(value) {
 
 module.exports = isKeyable;
 
-},{}],173:[function(require,module,exports){
+},{}],196:[function(require,module,exports){
 var LazyWrapper = require('./_LazyWrapper'),
     getData = require('./_getData'),
     getFuncName = require('./_getFuncName'),
@@ -25882,7 +27491,8 @@ var LazyWrapper = require('./_LazyWrapper'),
  *
  * @private
  * @param {Function} func The function to check.
- * @returns {boolean} Returns `true` if `func` has a lazy counterpart, else `false`.
+ * @returns {boolean} Returns `true` if `func` has a lazy counterpart,
+ *  else `false`.
  */
 function isLaziable(func) {
   var funcName = getFuncName(func),
@@ -25900,7 +27510,7 @@ function isLaziable(func) {
 
 module.exports = isLaziable;
 
-},{"./_LazyWrapper":63,"./_getData":151,"./_getFuncName":152,"./wrapperLodash":245}],174:[function(require,module,exports){
+},{"./_LazyWrapper":72,"./_getData":172,"./_getFuncName":173,"./wrapperLodash":271}],197:[function(require,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -25920,7 +27530,7 @@ function isPrototype(value) {
 
 module.exports = isPrototype;
 
-},{}],175:[function(require,module,exports){
+},{}],198:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /**
@@ -25937,7 +27547,7 @@ function isStrictComparable(value) {
 
 module.exports = isStrictComparable;
 
-},{"./isObject":220}],176:[function(require,module,exports){
+},{"./isObject":245}],199:[function(require,module,exports){
 /**
  * Converts `iterator` to an array.
  *
@@ -25957,7 +27567,7 @@ function iteratorToArray(iterator) {
 
 module.exports = iteratorToArray;
 
-},{}],177:[function(require,module,exports){
+},{}],200:[function(require,module,exports){
 var Hash = require('./_Hash'),
     Map = require('./_Map');
 
@@ -25978,7 +27588,7 @@ function mapClear() {
 
 module.exports = mapClear;
 
-},{"./_Hash":62,"./_Map":65}],178:[function(require,module,exports){
+},{"./_Hash":71,"./_Map":74}],201:[function(require,module,exports){
 var Map = require('./_Map'),
     assocDelete = require('./_assocDelete'),
     hashDelete = require('./_hashDelete'),
@@ -26003,7 +27613,7 @@ function mapDelete(key) {
 
 module.exports = mapDelete;
 
-},{"./_Map":65,"./_assocDelete":83,"./_hashDelete":160,"./_isKeyable":172}],179:[function(require,module,exports){
+},{"./_Map":74,"./_assocDelete":97,"./_hashDelete":182,"./_isKeyable":195}],202:[function(require,module,exports){
 var Map = require('./_Map'),
     assocGet = require('./_assocGet'),
     hashGet = require('./_hashGet'),
@@ -26028,7 +27638,7 @@ function mapGet(key) {
 
 module.exports = mapGet;
 
-},{"./_Map":65,"./_assocGet":84,"./_hashGet":161,"./_isKeyable":172}],180:[function(require,module,exports){
+},{"./_Map":74,"./_assocGet":98,"./_hashGet":183,"./_isKeyable":195}],203:[function(require,module,exports){
 var Map = require('./_Map'),
     assocHas = require('./_assocHas'),
     hashHas = require('./_hashHas'),
@@ -26053,7 +27663,7 @@ function mapHas(key) {
 
 module.exports = mapHas;
 
-},{"./_Map":65,"./_assocHas":85,"./_hashHas":162,"./_isKeyable":172}],181:[function(require,module,exports){
+},{"./_Map":74,"./_assocHas":99,"./_hashHas":184,"./_isKeyable":195}],204:[function(require,module,exports){
 var Map = require('./_Map'),
     assocSet = require('./_assocSet'),
     hashSet = require('./_hashSet'),
@@ -26067,7 +27677,7 @@ var Map = require('./_Map'),
  * @memberOf MapCache
  * @param {string} key The key of the value to set.
  * @param {*} value The value to set.
- * @returns {Object} Returns the map cache object.
+ * @returns {Object} Returns the map cache instance.
  */
 function mapSet(key, value) {
   var data = this.__data__;
@@ -26083,7 +27693,7 @@ function mapSet(key, value) {
 
 module.exports = mapSet;
 
-},{"./_Map":65,"./_assocSet":87,"./_hashSet":163,"./_isKeyable":172}],182:[function(require,module,exports){
+},{"./_Map":74,"./_assocSet":101,"./_hashSet":185,"./_isKeyable":195}],205:[function(require,module,exports){
 /**
  * Converts `map` to an array.
  *
@@ -26103,7 +27713,29 @@ function mapToArray(map) {
 
 module.exports = mapToArray;
 
-},{}],183:[function(require,module,exports){
+},{}],206:[function(require,module,exports){
+/**
+ * A specialized version of `matchesProperty` for source values suitable
+ * for strict equality comparisons, i.e. `===`.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @param {*} srcValue The value to match.
+ * @returns {Function} Returns the new function.
+ */
+function matchesStrictComparable(key, srcValue) {
+  return function(object) {
+    if (object == null) {
+      return false;
+    }
+    return object[key] === srcValue &&
+      (srcValue !== undefined || (key in Object(object)));
+  };
+}
+
+module.exports = matchesStrictComparable;
+
+},{}],207:[function(require,module,exports){
 var composeArgs = require('./_composeArgs'),
     composeArgsRight = require('./_composeArgsRight'),
     copyArray = require('./_copyArray'),
@@ -26128,10 +27760,11 @@ var nativeMin = Math.min;
  *
  * Merging metadata reduces the number of wrappers used to invoke a function.
  * This is possible because methods like `_.bind`, `_.curry`, and `_.partial`
- * may be applied regardless of execution order. Methods like `_.ary` and `_.rearg`
- * modify function arguments, making the order in which they are executed important,
- * preventing the merging of metadata. However, we make an exception for a safe
- * combined case where curried functions have `_.ary` and or `_.rearg` applied.
+ * may be applied regardless of execution order. Methods like `_.ary` and
+ * `_.rearg` modify function arguments, making the order in which they are
+ * executed important, preventing the merging of metadata. However, we make
+ * an exception for a safe combined case where curried functions have `_.ary`
+ * and or `_.rearg` applied.
  *
  * @private
  * @param {Array} data The destination metadata.
@@ -26195,7 +27828,7 @@ function mergeData(data, source) {
 
 module.exports = mergeData;
 
-},{"./_composeArgs":130,"./_composeArgsRight":131,"./_copyArray":132,"./_replaceHolders":189}],184:[function(require,module,exports){
+},{"./_composeArgs":150,"./_composeArgsRight":151,"./_copyArray":152,"./_replaceHolders":212}],208:[function(require,module,exports){
 var WeakMap = require('./_WeakMap');
 
 /** Used to store function metadata. */
@@ -26203,7 +27836,7 @@ var metaMap = WeakMap && new WeakMap;
 
 module.exports = metaMap;
 
-},{"./_WeakMap":72}],185:[function(require,module,exports){
+},{"./_WeakMap":83}],209:[function(require,module,exports){
 var getNative = require('./_getNative');
 
 /* Built-in method references that are verified to be native. */
@@ -26211,31 +27844,13 @@ var nativeCreate = getNative(Object, 'create');
 
 module.exports = nativeCreate;
 
-},{"./_getNative":155}],186:[function(require,module,exports){
-var baseSlice = require('./_baseSlice'),
-    get = require('./get');
-
-/**
- * Gets the parent value at `path` of `object`.
- *
- * @private
- * @param {Object} object The object to query.
- * @param {Array} path The path to get the parent value of.
- * @returns {*} Returns the parent value.
- */
-function parent(object, path) {
-  return path.length == 1 ? object : get(object, baseSlice(path, 0, -1));
-}
-
-module.exports = parent;
-
-},{"./_baseSlice":118,"./get":207}],187:[function(require,module,exports){
+},{"./_getNative":176}],210:[function(require,module,exports){
 /** Used to lookup unminified function names. */
 var realNames = {};
 
 module.exports = realNames;
 
-},{}],188:[function(require,module,exports){
+},{}],211:[function(require,module,exports){
 var copyArray = require('./_copyArray'),
     isIndex = require('./_isIndex');
 
@@ -26266,7 +27881,7 @@ function reorder(array, indexes) {
 
 module.exports = reorder;
 
-},{"./_copyArray":132,"./_isIndex":169}],189:[function(require,module,exports){
+},{"./_copyArray":152,"./_isIndex":192}],212:[function(require,module,exports){
 /** Used as the internal argument placeholder. */
 var PLACEHOLDER = '__lodash_placeholder__';
 
@@ -26297,7 +27912,7 @@ function replaceHolders(array, placeholder) {
 
 module.exports = replaceHolders;
 
-},{}],190:[function(require,module,exports){
+},{}],213:[function(require,module,exports){
 (function (global){
 var checkGlobal = require('./_checkGlobal');
 
@@ -26342,8 +27957,7 @@ var root = freeGlobal ||
 module.exports = root;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"./_checkGlobal":122}],191:[function(require,module,exports){
+},{"./_checkGlobal":141}],214:[function(require,module,exports){
 var baseSetData = require('./_baseSetData'),
     now = require('./now');
 
@@ -26355,8 +27969,9 @@ var HOT_COUNT = 150,
  * Sets metadata for `func`.
  *
  * **Note:** If this function becomes hot, i.e. is invoked a lot in a short
- * period of time, it will trip its breaker and transition to an identity function
- * to avoid garbage collection pauses in V8. See [V8 issue 2070](https://code.google.com/p/v8/issues/detail?id=2070)
+ * period of time, it will trip its breaker and transition to an identity
+ * function to avoid garbage collection pauses in V8. See
+ * [V8 issue 2070](https://bugs.chromium.org/p/v8/issues/detail?id=2070)
  * for more details.
  *
  * @private
@@ -26386,7 +28001,7 @@ var setData = (function() {
 
 module.exports = setData;
 
-},{"./_baseSetData":117,"./now":234}],192:[function(require,module,exports){
+},{"./_baseSetData":134,"./now":260}],215:[function(require,module,exports){
 /**
  * Converts `set` to an array.
  *
@@ -26406,7 +28021,7 @@ function setToArray(set) {
 
 module.exports = setToArray;
 
-},{}],193:[function(require,module,exports){
+},{}],216:[function(require,module,exports){
 /**
  * Removes all key-value entries from the stack.
  *
@@ -26420,7 +28035,7 @@ function stackClear() {
 
 module.exports = stackClear;
 
-},{}],194:[function(require,module,exports){
+},{}],217:[function(require,module,exports){
 var assocDelete = require('./_assocDelete');
 
 /**
@@ -26441,7 +28056,7 @@ function stackDelete(key) {
 
 module.exports = stackDelete;
 
-},{"./_assocDelete":83}],195:[function(require,module,exports){
+},{"./_assocDelete":97}],218:[function(require,module,exports){
 var assocGet = require('./_assocGet');
 
 /**
@@ -26462,7 +28077,7 @@ function stackGet(key) {
 
 module.exports = stackGet;
 
-},{"./_assocGet":84}],196:[function(require,module,exports){
+},{"./_assocGet":98}],219:[function(require,module,exports){
 var assocHas = require('./_assocHas');
 
 /**
@@ -26483,7 +28098,7 @@ function stackHas(key) {
 
 module.exports = stackHas;
 
-},{"./_assocHas":85}],197:[function(require,module,exports){
+},{"./_assocHas":99}],220:[function(require,module,exports){
 var MapCache = require('./_MapCache'),
     assocSet = require('./_assocSet');
 
@@ -26498,7 +28113,7 @@ var LARGE_ARRAY_SIZE = 200;
  * @memberOf Stack
  * @param {string} key The key of the value to set.
  * @param {*} value The value to set.
- * @returns {Object} Returns the stack cache object.
+ * @returns {Object} Returns the stack cache instance.
  */
 function stackSet(key, value) {
   var data = this.__data__,
@@ -26521,8 +28136,9 @@ function stackSet(key, value) {
 
 module.exports = stackSet;
 
-},{"./_MapCache":66,"./_assocSet":87}],198:[function(require,module,exports){
-var toString = require('./toString');
+},{"./_MapCache":75,"./_assocSet":101}],221:[function(require,module,exports){
+var memoize = require('./memoize'),
+    toString = require('./toString');
 
 /** Used to match property names within property paths. */
 var rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]/g;
@@ -26537,17 +28153,42 @@ var reEscapeChar = /\\(\\)?/g;
  * @param {string} string The string to convert.
  * @returns {Array} Returns the property path array.
  */
-function stringToPath(string) {
+var stringToPath = memoize(function(string) {
   var result = [];
   toString(string).replace(rePropName, function(match, number, quote, string) {
     result.push(quote ? string.replace(reEscapeChar, '$1') : (number || match));
   });
   return result;
-}
+});
 
 module.exports = stringToPath;
 
-},{"./toString":243}],199:[function(require,module,exports){
+},{"./memoize":257,"./toString":269}],222:[function(require,module,exports){
+var isFunction = require('./isFunction'),
+    toString = require('./toString');
+
+/** Used to resolve the decompiled source of functions. */
+var funcToString = Function.prototype.toString;
+
+/**
+ * Converts `func` to its source code.
+ *
+ * @private
+ * @param {Function} func The function to process.
+ * @returns {string} Returns the source code.
+ */
+function toSource(func) {
+  if (isFunction(func)) {
+    try {
+      return funcToString.call(func);
+    } catch (e) {}
+  }
+  return toString(func);
+}
+
+module.exports = toSource;
+
+},{"./isFunction":241,"./toString":269}],223:[function(require,module,exports){
 var LazyWrapper = require('./_LazyWrapper'),
     LodashWrapper = require('./_LodashWrapper'),
     copyArray = require('./_copyArray');
@@ -26572,7 +28213,7 @@ function wrapperClone(wrapper) {
 
 module.exports = wrapperClone;
 
-},{"./_LazyWrapper":63,"./_LodashWrapper":64,"./_copyArray":132}],200:[function(require,module,exports){
+},{"./_LazyWrapper":72,"./_LodashWrapper":73,"./_copyArray":152}],224:[function(require,module,exports){
 var assignValue = require('./_assignValue'),
     copyObject = require('./_copyObject'),
     createAssigner = require('./_createAssigner'),
@@ -26593,15 +28234,16 @@ var propertyIsEnumerable = objectProto.propertyIsEnumerable;
 var nonEnumShadows = !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf');
 
 /**
- * Assigns own enumerable properties of source objects to the destination
- * object. Source objects are applied from left to right. Subsequent sources
- * overwrite property assignments of previous sources.
+ * Assigns own enumerable string keyed properties of source objects to the
+ * destination object. Source objects are applied from left to right.
+ * Subsequent sources overwrite property assignments of previous sources.
  *
  * **Note:** This method mutates `object` and is loosely based on
  * [`Object.assign`](https://mdn.io/Object/assign).
  *
  * @static
  * @memberOf _
+ * @since 0.10.0
  * @category Object
  * @param {Object} object The destination object.
  * @param {...Object} [sources] The source objects.
@@ -26636,7 +28278,7 @@ var assign = createAssigner(function(object, source) {
 
 module.exports = assign;
 
-},{"./_assignValue":82,"./_copyObject":133,"./_createAssigner":138,"./_isPrototype":174,"./isArrayLike":212,"./keys":228}],201:[function(require,module,exports){
+},{"./_assignValue":96,"./_copyObject":153,"./_createAssigner":158,"./_isPrototype":197,"./isArrayLike":237,"./keys":253}],225:[function(require,module,exports){
 var createWrapper = require('./_createWrapper'),
     getPlaceholder = require('./_getPlaceholder'),
     replaceHolders = require('./_replaceHolders'),
@@ -26648,8 +28290,7 @@ var BIND_FLAG = 1,
 
 /**
  * Creates a function that invokes `func` with the `this` binding of `thisArg`
- * and prepends any additional `_.bind` arguments to those provided to the
- * bound function.
+ * and `partials` prepended to the arguments it receives.
  *
  * The `_.bind.placeholder` value, which defaults to `_` in monolithic builds,
  * may be used as a placeholder for partially applied arguments.
@@ -26659,6 +28300,7 @@ var BIND_FLAG = 1,
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Function
  * @param {Function} func The function to bind.
  * @param {*} thisArg The `this` binding of `func`.
@@ -26695,12 +28337,13 @@ bind.placeholder = {};
 
 module.exports = bind;
 
-},{"./_createWrapper":147,"./_getPlaceholder":156,"./_replaceHolders":189,"./rest":237}],202:[function(require,module,exports){
+},{"./_createWrapper":167,"./_getPlaceholder":177,"./_replaceHolders":212,"./rest":263}],226:[function(require,module,exports){
 /**
  * Creates a function that returns `value`.
  *
  * @static
  * @memberOf _
+ * @since 2.4.0
  * @category Util
  * @param {*} value The value to return from the new function.
  * @returns {Function} Returns the new function.
@@ -26720,13 +28363,59 @@ function constant(value) {
 
 module.exports = constant;
 
-},{}],203:[function(require,module,exports){
+},{}],227:[function(require,module,exports){
+var baseDifference = require('./_baseDifference'),
+    baseFlatten = require('./_baseFlatten'),
+    baseIteratee = require('./_baseIteratee'),
+    isArrayLikeObject = require('./isArrayLikeObject'),
+    last = require('./last'),
+    rest = require('./rest');
+
 /**
- * Performs a [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
+ * This method is like `_.difference` except that it accepts `iteratee` which
+ * is invoked for each element of `array` and `values` to generate the criterion
+ * by which they're compared. Result values are chosen from the first array.
+ * The iteratee is invoked with one argument: (value).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Array
+ * @param {Array} array The array to inspect.
+ * @param {...Array} [values] The values to exclude.
+ * @param {Array|Function|Object|string} [iteratee=_.identity]
+ *  The iteratee invoked per element.
+ * @returns {Array} Returns the new array of filtered values.
+ * @example
+ *
+ * _.differenceBy([3.1, 2.2, 1.3], [4.4, 2.5], Math.floor);
+ * // => [3.1, 1.3]
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.differenceBy([{ 'x': 2 }, { 'x': 1 }], [{ 'x': 1 }], 'x');
+ * // => [{ 'x': 2 }]
+ */
+var differenceBy = rest(function(array, values) {
+  var iteratee = last(values);
+  if (isArrayLikeObject(iteratee)) {
+    iteratee = undefined;
+  }
+  return isArrayLikeObject(array)
+    ? baseDifference(array, baseFlatten(values, 1, true), baseIteratee(iteratee))
+    : [];
+});
+
+module.exports = differenceBy;
+
+},{"./_baseDifference":107,"./_baseFlatten":111,"./_baseIteratee":122,"./isArrayLikeObject":238,"./last":255,"./rest":263}],228:[function(require,module,exports){
+/**
+ * Performs a
+ * [`SameValueZero`](http://ecma-international.org/ecma-262/6.0/#sec-samevaluezero)
  * comparison between two values to determine if they are equivalent.
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to compare.
  * @param {*} other The other value to compare.
@@ -26757,7 +28446,7 @@ function eq(value, other) {
 
 module.exports = eq;
 
-},{}],204:[function(require,module,exports){
+},{}],229:[function(require,module,exports){
 var baseEach = require('./_baseEach'),
     baseFind = require('./_baseFind'),
     baseFindIndex = require('./_baseFindIndex'),
@@ -26766,14 +28455,16 @@ var baseEach = require('./_baseEach'),
 
 /**
  * Iterates over elements of `collection`, returning the first element
- * `predicate` returns truthy for. The predicate is invoked with three arguments:
- * (value, index|key, collection).
+ * `predicate` returns truthy for. The predicate is invoked with three
+ * arguments: (value, index|key, collection).
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to search.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
+ * @param {Array|Function|Object|string} [predicate=_.identity]
+ *  The function invoked per iteration.
  * @returns {*} Returns the matched element, else `undefined`.
  * @example
  *
@@ -26809,7 +28500,7 @@ function find(collection, predicate) {
 
 module.exports = find;
 
-},{"./_baseEach":94,"./_baseFind":95,"./_baseFindIndex":96,"./_baseIteratee":105,"./isArray":211}],205:[function(require,module,exports){
+},{"./_baseEach":108,"./_baseFind":109,"./_baseFindIndex":110,"./_baseIteratee":122,"./isArray":236}],230:[function(require,module,exports){
 var baseFindIndex = require('./_baseFindIndex'),
     baseIteratee = require('./_baseIteratee');
 
@@ -26819,9 +28510,11 @@ var baseFindIndex = require('./_baseFindIndex'),
  *
  * @static
  * @memberOf _
+ * @since 1.1.0
  * @category Array
  * @param {Array} array The array to search.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
+ * @param {Array|Function|Object|string} [predicate=_.identity]
+ *  The function invoked per iteration.
  * @returns {number} Returns the index of the found element, else `-1`.
  * @example
  *
@@ -26854,10 +28547,10 @@ function findIndex(array, predicate) {
 
 module.exports = findIndex;
 
-},{"./_baseFindIndex":96,"./_baseIteratee":105}],206:[function(require,module,exports){
+},{"./_baseFindIndex":110,"./_baseIteratee":122}],231:[function(require,module,exports){
 var arrayEach = require('./_arrayEach'),
-    baseCastFunction = require('./_baseCastFunction'),
     baseEach = require('./_baseEach'),
+    baseIteratee = require('./_baseIteratee'),
     isArray = require('./isArray');
 
 /**
@@ -26865,12 +28558,13 @@ var arrayEach = require('./_arrayEach'),
  * The iteratee is invoked with three arguments: (value, index|key, collection).
  * Iteratee functions may exit iteration early by explicitly returning `false`.
  *
- * **Note:** As with other "Collections" methods, objects with a "length" property
- * are iterated like arrays. To avoid this behavior use `_.forIn` or `_.forOwn`
- * for object iteration.
+ * **Note:** As with other "Collections" methods, objects with a "length"
+ * property are iterated like arrays. To avoid this behavior use `_.forIn`
+ * or `_.forOwn` for object iteration.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @alias each
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
@@ -26881,22 +28575,22 @@ var arrayEach = require('./_arrayEach'),
  * _([1, 2]).forEach(function(value) {
  *   console.log(value);
  * });
- * // => logs `1` then `2`
+ * // => Logs `1` then `2`.
  *
  * _.forEach({ 'a': 1, 'b': 2 }, function(value, key) {
  *   console.log(key);
  * });
- * // => logs 'a' then 'b' (iteration order is not guaranteed)
+ * // => Logs 'a' then 'b' (iteration order is not guaranteed).
  */
 function forEach(collection, iteratee) {
   return (typeof iteratee == 'function' && isArray(collection))
     ? arrayEach(collection, iteratee)
-    : baseEach(collection, baseCastFunction(iteratee));
+    : baseEach(collection, baseIteratee(iteratee));
 }
 
 module.exports = forEach;
 
-},{"./_arrayEach":77,"./_baseCastFunction":90,"./_baseEach":94,"./isArray":211}],207:[function(require,module,exports){
+},{"./_arrayEach":88,"./_baseEach":108,"./_baseIteratee":122,"./isArray":236}],232:[function(require,module,exports){
 var baseGet = require('./_baseGet');
 
 /**
@@ -26905,10 +28599,11 @@ var baseGet = require('./_baseGet');
  *
  * @static
  * @memberOf _
+ * @since 3.7.0
  * @category Object
  * @param {Object} object The object to query.
  * @param {Array|string} path The path of the property to get.
- * @param {*} [defaultValue] The value returned if the resolved value is `undefined`.
+ * @param {*} [defaultValue] The value returned for `undefined` resolved values.
  * @returns {*} Returns the resolved value.
  * @example
  *
@@ -26930,7 +28625,7 @@ function get(object, path, defaultValue) {
 
 module.exports = get;
 
-},{"./_baseGet":99}],208:[function(require,module,exports){
+},{"./_baseGet":114}],233:[function(require,module,exports){
 var baseHasIn = require('./_baseHasIn'),
     hasPath = require('./_hasPath');
 
@@ -26939,6 +28634,7 @@ var baseHasIn = require('./_baseHasIn'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Object
  * @param {Object} object The object to query.
  * @param {Array|string} path The path to check.
@@ -26960,16 +28656,17 @@ var baseHasIn = require('./_baseHasIn'),
  * // => false
  */
 function hasIn(object, path) {
-  return hasPath(object, path, baseHasIn);
+  return object != null && hasPath(object, path, baseHasIn);
 }
 
 module.exports = hasIn;
 
-},{"./_baseHasIn":101,"./_hasPath":159}],209:[function(require,module,exports){
+},{"./_baseHasIn":117,"./_hasPath":181}],234:[function(require,module,exports){
 /**
  * This method returns the first argument given to it.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Util
  * @param {*} value Any value.
@@ -26987,7 +28684,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],210:[function(require,module,exports){
+},{}],235:[function(require,module,exports){
 var isArrayLikeObject = require('./isArrayLikeObject');
 
 /** `Object#toString` result references. */
@@ -27000,7 +28697,8 @@ var objectProto = Object.prototype;
 var hasOwnProperty = objectProto.hasOwnProperty;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27013,9 +28711,11 @@ var propertyIsEnumerable = objectProto.propertyIsEnumerable;
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isArguments(function() { return arguments; }());
@@ -27032,16 +28732,18 @@ function isArguments(value) {
 
 module.exports = isArguments;
 
-},{"./isArrayLikeObject":213}],211:[function(require,module,exports){
+},{"./isArrayLikeObject":238}],236:[function(require,module,exports){
 /**
  * Checks if `value` is classified as an `Array` object.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @type {Function}
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isArray([1, 2, 3]);
@@ -27060,7 +28762,7 @@ var isArray = Array.isArray;
 
 module.exports = isArray;
 
-},{}],212:[function(require,module,exports){
+},{}],237:[function(require,module,exports){
 var getLength = require('./_getLength'),
     isFunction = require('./isFunction'),
     isLength = require('./isLength');
@@ -27072,6 +28774,7 @@ var getLength = require('./_getLength'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
@@ -27095,7 +28798,7 @@ function isArrayLike(value) {
 
 module.exports = isArrayLike;
 
-},{"./_getLength":153,"./isFunction":216,"./isLength":217}],213:[function(require,module,exports){
+},{"./_getLength":174,"./isFunction":241,"./isLength":242}],238:[function(require,module,exports){
 var isArrayLike = require('./isArrayLike'),
     isObjectLike = require('./isObjectLike');
 
@@ -27105,9 +28808,11 @@ var isArrayLike = require('./isArrayLike'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is an array-like object, else `false`.
+ * @returns {boolean} Returns `true` if `value` is an array-like object,
+ *  else `false`.
  * @example
  *
  * _.isArrayLikeObject([1, 2, 3]);
@@ -27128,7 +28833,7 @@ function isArrayLikeObject(value) {
 
 module.exports = isArrayLikeObject;
 
-},{"./isArrayLike":212,"./isObjectLike":221}],214:[function(require,module,exports){
+},{"./isArrayLike":237,"./isObjectLike":246}],239:[function(require,module,exports){
 var constant = require('./constant'),
     root = require('./_root');
 
@@ -27161,6 +28866,7 @@ var Buffer = moduleExports ? root.Buffer : undefined;
  *
  * @static
  * @memberOf _
+ * @since 4.3.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is a buffer, else `false`.
@@ -27178,12 +28884,20 @@ var isBuffer = !Buffer ? constant(false) : function(value) {
 
 module.exports = isBuffer;
 
-},{"./_root":190,"./constant":202}],215:[function(require,module,exports){
-var isArguments = require('./isArguments'),
+},{"./_root":213,"./constant":226}],240:[function(require,module,exports){
+var getTag = require('./_getTag'),
+    isArguments = require('./isArguments'),
     isArray = require('./isArray'),
     isArrayLike = require('./isArrayLike'),
+    isBuffer = require('./isBuffer'),
     isFunction = require('./isFunction'),
-    isString = require('./isString');
+    isObjectLike = require('./isObjectLike'),
+    isString = require('./isString'),
+    keys = require('./keys');
+
+/** `Object#toString` result references. */
+var mapTag = '[object Map]',
+    setTag = '[object Set]';
 
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
@@ -27191,13 +28905,25 @@ var objectProto = Object.prototype;
 /** Used to check objects for own properties. */
 var hasOwnProperty = objectProto.hasOwnProperty;
 
+/** Built-in value references. */
+var propertyIsEnumerable = objectProto.propertyIsEnumerable;
+
+/** Detect if properties shadowing those on `Object.prototype` are non-enumerable. */
+var nonEnumShadows = !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf');
+
 /**
- * Checks if `value` is an empty collection or object. A value is considered
- * empty if it's an `arguments` object, array, string, or jQuery-like collection
- * with a length of `0` or has no own enumerable properties.
+ * Checks if `value` is an empty object, collection, map, or set.
+ *
+ * Objects are considered empty if they have no own enumerable string keyed
+ * properties.
+ *
+ * Array-like values such as `arguments` objects, arrays, buffers, strings, or
+ * jQuery-like collections are considered empty if they have a `length` of `0`.
+ * Similarly, maps and sets are considered empty if they have a `size` of `0`.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is empty, else `false`.
@@ -27220,21 +28946,27 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  */
 function isEmpty(value) {
   if (isArrayLike(value) &&
-      (isArray(value) || isString(value) ||
-        isFunction(value.splice) || isArguments(value))) {
+      (isArray(value) || isString(value) || isFunction(value.splice) ||
+        isArguments(value) || isBuffer(value))) {
     return !value.length;
+  }
+  if (isObjectLike(value)) {
+    var tag = getTag(value);
+    if (tag == mapTag || tag == setTag) {
+      return !value.size;
+    }
   }
   for (var key in value) {
     if (hasOwnProperty.call(value, key)) {
       return false;
     }
   }
-  return true;
+  return !(nonEnumShadows && keys(value).length);
 }
 
 module.exports = isEmpty;
 
-},{"./isArguments":210,"./isArray":211,"./isArrayLike":212,"./isFunction":216,"./isString":224}],216:[function(require,module,exports){
+},{"./_getTag":180,"./isArguments":235,"./isArray":236,"./isArrayLike":237,"./isBuffer":239,"./isFunction":241,"./isObjectLike":246,"./isString":249,"./keys":253}],241:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** `Object#toString` result references. */
@@ -27245,7 +28977,8 @@ var funcTag = '[object Function]',
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27255,9 +28988,11 @@ var objectToString = objectProto.toString;
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isFunction(_);
@@ -27276,20 +29011,23 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{"./isObject":220}],217:[function(require,module,exports){
+},{"./isObject":245}],242:[function(require,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
 /**
  * Checks if `value` is a valid array-like length.
  *
- * **Note:** This function is loosely based on [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
+ * **Note:** This function is loosely based on
+ * [`ToLength`](http://ecma-international.org/ecma-262/6.0/#sec-tolength).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+ * @returns {boolean} Returns `true` if `value` is a valid length,
+ *  else `false`.
  * @example
  *
  * _.isLength(3);
@@ -27311,15 +29049,19 @@ function isLength(value) {
 
 module.exports = isLength;
 
-},{}],218:[function(require,module,exports){
+},{}],243:[function(require,module,exports){
 var isFunction = require('./isFunction'),
     isHostObject = require('./_isHostObject'),
-    isObjectLike = require('./isObjectLike');
+    isObject = require('./isObject'),
+    toSource = require('./_toSource');
 
-/** Used to match `RegExp` [syntax characters](http://ecma-international.org/ecma-262/6.0/#sec-patterns). */
+/**
+ * Used to match `RegExp`
+ * [syntax characters](http://ecma-international.org/ecma-262/6.0/#sec-patterns).
+ */
 var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
 
-/** Used to detect host constructors (Safari > 5). */
+/** Used to detect host constructors (Safari). */
 var reIsHostCtor = /^\[object .+?Constructor\]$/;
 
 /** Used for built-in method references. */
@@ -27342,9 +29084,11 @@ var reIsNative = RegExp('^' +
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a native function, else `false`.
+ * @returns {boolean} Returns `true` if `value` is a native function,
+ *  else `false`.
  * @example
  *
  * _.isNative(Array.prototype.push);
@@ -27354,19 +29098,16 @@ var reIsNative = RegExp('^' +
  * // => false
  */
 function isNative(value) {
-  if (value == null) {
+  if (!isObject(value)) {
     return false;
   }
-  if (isFunction(value)) {
-    return reIsNative.test(funcToString.call(value));
-  }
-  return isObjectLike(value) &&
-    (isHostObject(value) ? reIsNative : reIsHostCtor).test(value);
+  var pattern = (isFunction(value) || isHostObject(value)) ? reIsNative : reIsHostCtor;
+  return pattern.test(toSource(value));
 }
 
 module.exports = isNative;
 
-},{"./_isHostObject":168,"./isFunction":216,"./isObjectLike":221}],219:[function(require,module,exports){
+},{"./_isHostObject":191,"./_toSource":222,"./isFunction":241,"./isObject":245}],244:[function(require,module,exports){
 var isObjectLike = require('./isObjectLike');
 
 /** `Object#toString` result references. */
@@ -27376,7 +29117,8 @@ var numberTag = '[object Number]';
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27384,14 +29126,16 @@ var objectToString = objectProto.toString;
 /**
  * Checks if `value` is classified as a `Number` primitive or object.
  *
- * **Note:** To exclude `Infinity`, `-Infinity`, and `NaN`, which are classified
- * as numbers, use the `_.isFinite` method.
+ * **Note:** To exclude `Infinity`, `-Infinity`, and `NaN`, which are
+ * classified as numbers, use the `_.isFinite` method.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isNumber(3);
@@ -27413,13 +29157,15 @@ function isNumber(value) {
 
 module.exports = isNumber;
 
-},{"./isObjectLike":221}],220:[function(require,module,exports){
+},{"./isObjectLike":246}],245:[function(require,module,exports){
 /**
- * Checks if `value` is the [language type](https://es5.github.io/#x8) of `Object`.
- * (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ * Checks if `value` is the
+ * [language type](http://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-language-types)
+ * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is an object, else `false`.
@@ -27444,13 +29190,14 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{}],221:[function(require,module,exports){
+},{}],246:[function(require,module,exports){
 /**
  * Checks if `value` is object-like. A value is object-like if it's not `null`
  * and has a `typeof` result of "object".
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
@@ -27474,8 +29221,9 @@ function isObjectLike(value) {
 
 module.exports = isObjectLike;
 
-},{}],222:[function(require,module,exports){
-var isHostObject = require('./_isHostObject'),
+},{}],247:[function(require,module,exports){
+var getPrototype = require('./_getPrototype'),
+    isHostObject = require('./_isHostObject'),
     isObjectLike = require('./isObjectLike');
 
 /** `Object#toString` result references. */
@@ -27487,17 +29235,18 @@ var objectProto = Object.prototype;
 /** Used to resolve the decompiled source of functions. */
 var funcToString = Function.prototype.toString;
 
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
 /** Used to infer the `Object` constructor. */
 var objectCtorString = funcToString.call(Object);
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
-
-/** Built-in value references. */
-var getPrototypeOf = Object.getPrototypeOf;
 
 /**
  * Checks if `value` is a plain object, that is, an object created by the
@@ -27505,9 +29254,11 @@ var getPrototypeOf = Object.getPrototypeOf;
  *
  * @static
  * @memberOf _
+ * @since 0.8.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a plain object, else `false`.
+ * @returns {boolean} Returns `true` if `value` is a plain object,
+ *  else `false`.
  * @example
  *
  * function Foo() {
@@ -27531,18 +29282,18 @@ function isPlainObject(value) {
       objectToString.call(value) != objectTag || isHostObject(value)) {
     return false;
   }
-  var proto = getPrototypeOf(value);
+  var proto = getPrototype(value);
   if (proto === null) {
     return true;
   }
-  var Ctor = proto.constructor;
+  var Ctor = hasOwnProperty.call(proto, 'constructor') && proto.constructor;
   return (typeof Ctor == 'function' &&
     Ctor instanceof Ctor && funcToString.call(Ctor) == objectCtorString);
 }
 
 module.exports = isPlainObject;
 
-},{"./_isHostObject":168,"./isObjectLike":221}],223:[function(require,module,exports){
+},{"./_getPrototype":178,"./_isHostObject":191,"./isObjectLike":246}],248:[function(require,module,exports){
 var isObject = require('./isObject');
 
 /** `Object#toString` result references. */
@@ -27552,7 +29303,8 @@ var regexpTag = '[object RegExp]';
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27562,9 +29314,11 @@ var objectToString = objectProto.toString;
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isRegExp(/abc/);
@@ -27579,7 +29333,7 @@ function isRegExp(value) {
 
 module.exports = isRegExp;
 
-},{"./isObject":220}],224:[function(require,module,exports){
+},{"./isObject":245}],249:[function(require,module,exports){
 var isArray = require('./isArray'),
     isObjectLike = require('./isObjectLike');
 
@@ -27590,7 +29344,8 @@ var stringTag = '[object String]';
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27599,10 +29354,12 @@ var objectToString = objectProto.toString;
  * Checks if `value` is classified as a `String` primitive or object.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isString('abc');
@@ -27618,7 +29375,7 @@ function isString(value) {
 
 module.exports = isString;
 
-},{"./isArray":211,"./isObjectLike":221}],225:[function(require,module,exports){
+},{"./isArray":236,"./isObjectLike":246}],250:[function(require,module,exports){
 var isObjectLike = require('./isObjectLike');
 
 /** `Object#toString` result references. */
@@ -27628,7 +29385,8 @@ var symbolTag = '[object Symbol]';
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27638,9 +29396,11 @@ var objectToString = objectProto.toString;
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isSymbol(Symbol.iterator);
@@ -27656,7 +29416,7 @@ function isSymbol(value) {
 
 module.exports = isSymbol;
 
-},{"./isObjectLike":221}],226:[function(require,module,exports){
+},{"./isObjectLike":246}],251:[function(require,module,exports){
 var isLength = require('./isLength'),
     isObjectLike = require('./isObjectLike');
 
@@ -27676,6 +29436,7 @@ var argsTag = '[object Arguments]',
     weakMapTag = '[object WeakMap]';
 
 var arrayBufferTag = '[object ArrayBuffer]',
+    dataViewTag = '[object DataView]',
     float32Tag = '[object Float32Array]',
     float64Tag = '[object Float64Array]',
     int8Tag = '[object Int8Array]',
@@ -27695,17 +29456,19 @@ typedArrayTags[uint8ClampedTag] = typedArrayTags[uint16Tag] =
 typedArrayTags[uint32Tag] = true;
 typedArrayTags[argsTag] = typedArrayTags[arrayTag] =
 typedArrayTags[arrayBufferTag] = typedArrayTags[boolTag] =
-typedArrayTags[dateTag] = typedArrayTags[errorTag] =
-typedArrayTags[funcTag] = typedArrayTags[mapTag] =
-typedArrayTags[numberTag] = typedArrayTags[objectTag] =
-typedArrayTags[regexpTag] = typedArrayTags[setTag] =
-typedArrayTags[stringTag] = typedArrayTags[weakMapTag] = false;
+typedArrayTags[dataViewTag] = typedArrayTags[dateTag] =
+typedArrayTags[errorTag] = typedArrayTags[funcTag] =
+typedArrayTags[mapTag] = typedArrayTags[numberTag] =
+typedArrayTags[objectTag] = typedArrayTags[regexpTag] =
+typedArrayTags[setTag] = typedArrayTags[stringTag] =
+typedArrayTags[weakMapTag] = false;
 
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
 /**
- * Used to resolve the [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -27715,9 +29478,11 @@ var objectToString = objectProto.toString;
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
+ * @returns {boolean} Returns `true` if `value` is correctly classified,
+ *  else `false`.
  * @example
  *
  * _.isTypedArray(new Uint8Array);
@@ -27733,20 +29498,22 @@ function isTypedArray(value) {
 
 module.exports = isTypedArray;
 
-},{"./isLength":217,"./isObjectLike":221}],227:[function(require,module,exports){
+},{"./isLength":242,"./isObjectLike":246}],252:[function(require,module,exports){
 var createAggregator = require('./_createAggregator');
 
 /**
  * Creates an object composed of keys generated from the results of running
- * each element of `collection` through `iteratee`. The corresponding value
- * of each key is the last element responsible for generating the key. The
+ * each element of `collection` thru `iteratee`. The corresponding value of
+ * each key is the last element responsible for generating the key. The
  * iteratee is invoked with one argument: (value).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function|Object|string} [iteratee=_.identity] The iteratee to transform keys.
+ * @param {Array|Function|Object|string} [iteratee=_.identity]
+ *  The iteratee to transform keys.
  * @returns {Object} Returns the composed aggregate object.
  * @example
  *
@@ -27769,7 +29536,7 @@ var keyBy = createAggregator(function(result, value, key) {
 
 module.exports = keyBy;
 
-},{"./_createAggregator":137}],228:[function(require,module,exports){
+},{"./_createAggregator":157}],253:[function(require,module,exports){
 var baseHas = require('./_baseHas'),
     baseKeys = require('./_baseKeys'),
     indexKeys = require('./_indexKeys'),
@@ -27785,6 +29552,7 @@ var baseHas = require('./_baseHas'),
  * for more details.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Object
  * @param {Object} object The object to query.
@@ -27826,7 +29594,7 @@ function keys(object) {
 
 module.exports = keys;
 
-},{"./_baseHas":100,"./_baseKeys":106,"./_indexKeys":164,"./_isIndex":169,"./_isPrototype":174,"./isArrayLike":212}],229:[function(require,module,exports){
+},{"./_baseHas":116,"./_baseKeys":123,"./_indexKeys":186,"./_isIndex":192,"./_isPrototype":197,"./isArrayLike":237}],254:[function(require,module,exports){
 var baseKeysIn = require('./_baseKeysIn'),
     indexKeys = require('./_indexKeys'),
     isIndex = require('./_isIndex'),
@@ -27845,6 +29613,7 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Object
  * @param {Object} object The object to query.
  * @returns {Array} Returns the array of property names.
@@ -27882,12 +29651,13 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"./_baseKeysIn":107,"./_indexKeys":164,"./_isIndex":169,"./_isPrototype":174}],230:[function(require,module,exports){
+},{"./_baseKeysIn":124,"./_indexKeys":186,"./_isIndex":192,"./_isPrototype":197}],255:[function(require,module,exports){
 /**
  * Gets the last element of `array`.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Array
  * @param {Array} array The array to query.
  * @returns {*} Returns the last element of `array`.
@@ -27903,14 +29673,14 @@ function last(array) {
 
 module.exports = last;
 
-},{}],231:[function(require,module,exports){
+},{}],256:[function(require,module,exports){
 var arrayMap = require('./_arrayMap'),
     baseIteratee = require('./_baseIteratee'),
     baseMap = require('./_baseMap'),
     isArray = require('./isArray');
 
 /**
- * Creates an array of values by running each element in `collection` through
+ * Creates an array of values by running each element in `collection` thru
  * `iteratee`. The iteratee is invoked with three arguments:
  * (value, index|key, collection).
  *
@@ -27918,16 +29688,18 @@ var arrayMap = require('./_arrayMap'),
  * `_.every`, `_.filter`, `_.map`, `_.mapValues`, `_.reject`, and `_.some`.
  *
  * The guarded methods are:
- * `ary`, `curry`, `curryRight`, `drop`, `dropRight`, `every`, `fill`,
- * `invert`, `parseInt`, `random`, `range`, `rangeRight`, `slice`, `some`,
- * `sortBy`, `take`, `takeRight`, `template`, `trim`, `trimEnd`, `trimStart`,
- * and `words`
+ * `ary`, `chunk`, `curry`, `curryRight`, `drop`, `dropRight`, `every`,
+ * `fill`, `invert`, `parseInt`, `random`, `range`, `rangeRight`, `repeat`,
+ * `sampleSize`, `slice`, `some`, `sortBy`, `take`, `takeRight`, `template`,
+ * `trim`, `trimEnd`, `trimStart`, and `words`
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function|Object|string} [iteratee=_.identity] The function invoked per iteration.
+ * @param {Array|Function|Object|string} [iteratee=_.identity]
+ *  The function invoked per iteration.
  * @returns {Array} Returns the new mapped array.
  * @example
  *
@@ -27957,23 +29729,99 @@ function map(collection, iteratee) {
 
 module.exports = map;
 
-},{"./_arrayMap":78,"./_baseIteratee":105,"./_baseMap":109,"./isArray":211}],232:[function(require,module,exports){
+},{"./_arrayMap":91,"./_baseIteratee":122,"./_baseMap":126,"./isArray":236}],257:[function(require,module,exports){
+var MapCache = require('./_MapCache');
+
+/** Used as the `TypeError` message for "Functions" methods. */
+var FUNC_ERROR_TEXT = 'Expected a function';
+
+/**
+ * Creates a function that memoizes the result of `func`. If `resolver` is
+ * provided it determines the cache key for storing the result based on the
+ * arguments provided to the memoized function. By default, the first argument
+ * provided to the memoized function is used as the map cache key. The `func`
+ * is invoked with the `this` binding of the memoized function.
+ *
+ * **Note:** The cache is exposed as the `cache` property on the memoized
+ * function. Its creation may be customized by replacing the `_.memoize.Cache`
+ * constructor with one whose instances implement the
+ * [`Map`](http://ecma-international.org/ecma-262/6.0/#sec-properties-of-the-map-prototype-object)
+ * method interface of `delete`, `get`, `has`, and `set`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Function
+ * @param {Function} func The function to have its output memoized.
+ * @param {Function} [resolver] The function to resolve the cache key.
+ * @returns {Function} Returns the new memoizing function.
+ * @example
+ *
+ * var object = { 'a': 1, 'b': 2 };
+ * var other = { 'c': 3, 'd': 4 };
+ *
+ * var values = _.memoize(_.values);
+ * values(object);
+ * // => [1, 2]
+ *
+ * values(other);
+ * // => [3, 4]
+ *
+ * object.a = 2;
+ * values(object);
+ * // => [1, 2]
+ *
+ * // Modify the result cache.
+ * values.cache.set(object, ['a', 'b']);
+ * values(object);
+ * // => ['a', 'b']
+ *
+ * // Replace `_.memoize.Cache`.
+ * _.memoize.Cache = WeakMap;
+ */
+function memoize(func, resolver) {
+  if (typeof func != 'function' || (resolver && typeof resolver != 'function')) {
+    throw new TypeError(FUNC_ERROR_TEXT);
+  }
+  var memoized = function() {
+    var args = arguments,
+        key = resolver ? resolver.apply(this, args) : args[0],
+        cache = memoized.cache;
+
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    var result = func.apply(this, args);
+    memoized.cache = cache.set(key, result);
+    return result;
+  };
+  memoized.cache = new (memoize.Cache || MapCache);
+  return memoized;
+}
+
+// Assign cache to `_.memoize`.
+memoize.Cache = MapCache;
+
+module.exports = memoize;
+
+},{"./_MapCache":75}],258:[function(require,module,exports){
 var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
 /**
  * This method is like `_.assign` except that it recursively merges own and
- * inherited enumerable properties of source objects into the destination
- * object. Source properties that resolve to `undefined` are skipped if a
- * destination value exists. Array and plain object properties are merged
- * recursively.Other objects and value types are overridden by assignment.
- * Source objects are applied from left to right. Subsequent sources
- * overwrite property assignments of previous sources.
+ * inherited enumerable string keyed properties of source objects into the
+ * destination object. Source properties that resolve to `undefined` are
+ * skipped if a destination value exists. Array and plain object properties
+ * are merged recursively.Other objects and value types are overridden by
+ * assignment. Source objects are applied from left to right. Subsequent
+ * sources overwrite property assignments of previous sources.
  *
  * **Note:** This method mutates `object`.
  *
  * @static
  * @memberOf _
+ * @since 0.5.0
  * @category Object
  * @param {Object} object The destination object.
  * @param {...Object} [sources] The source objects.
@@ -27997,13 +29845,14 @@ var merge = createAssigner(function(object, source, srcIndex) {
 
 module.exports = merge;
 
-},{"./_baseMerge":112,"./_createAssigner":138}],233:[function(require,module,exports){
+},{"./_baseMerge":129,"./_createAssigner":158}],259:[function(require,module,exports){
 /**
  * A no-operation function that returns `undefined` regardless of the
  * arguments it receives.
  *
  * @static
  * @memberOf _
+ * @since 2.3.0
  * @category Util
  * @example
  *
@@ -28018,13 +29867,14 @@ function noop() {
 
 module.exports = noop;
 
-},{}],234:[function(require,module,exports){
+},{}],260:[function(require,module,exports){
 /**
  * Gets the timestamp of the number of milliseconds that have elapsed since
  * the Unix epoch (1 January 1970 00:00:00 UTC).
  *
  * @static
  * @memberOf _
+ * @since 2.4.0
  * @type {Function}
  * @category Date
  * @returns {number} Returns the timestamp.
@@ -28033,13 +29883,13 @@ module.exports = noop;
  * _.defer(function(stamp) {
  *   console.log(_.now() - stamp);
  * }, _.now());
- * // => logs the number of milliseconds it took for the deferred function to be invoked
+ * // => Logs the number of milliseconds it took for the deferred function to be invoked.
  */
 var now = Date.now;
 
 module.exports = now;
 
-},{}],235:[function(require,module,exports){
+},{}],261:[function(require,module,exports){
 var baseProperty = require('./_baseProperty'),
     basePropertyDeep = require('./_basePropertyDeep'),
     isKey = require('./_isKey');
@@ -28049,6 +29899,7 @@ var baseProperty = require('./_baseProperty'),
  *
  * @static
  * @memberOf _
+ * @since 2.4.0
  * @category Util
  * @param {Array|string} path The path of the property to get.
  * @returns {Function} Returns the new function.
@@ -28071,7 +29922,7 @@ function property(path) {
 
 module.exports = property;
 
-},{"./_baseProperty":114,"./_basePropertyDeep":115,"./_isKey":171}],236:[function(require,module,exports){
+},{"./_baseProperty":131,"./_basePropertyDeep":132,"./_isKey":194}],262:[function(require,module,exports){
 var arrayReduce = require('./_arrayReduce'),
     baseEach = require('./_baseEach'),
     baseIteratee = require('./_baseIteratee'),
@@ -28080,7 +29931,7 @@ var arrayReduce = require('./_arrayReduce'),
 
 /**
  * Reduces `collection` to a value which is the accumulated result of running
- * each element in `collection` through `iteratee`, where each successive
+ * each element in `collection` thru `iteratee`, where each successive
  * invocation is supplied the return value of the previous. If `accumulator`
  * is not given the first element of `collection` is used as the initial
  * value. The iteratee is invoked with four arguments:
@@ -28095,6 +29946,7 @@ var arrayReduce = require('./_arrayReduce'),
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
  * @param {Function} [iteratee=_.identity] The function invoked per iteration.
@@ -28122,7 +29974,7 @@ function reduce(collection, iteratee, accumulator) {
 
 module.exports = reduce;
 
-},{"./_arrayReduce":79,"./_baseEach":94,"./_baseIteratee":105,"./_baseReduce":116,"./isArray":211}],237:[function(require,module,exports){
+},{"./_arrayReduce":93,"./_baseEach":108,"./_baseIteratee":122,"./_baseReduce":133,"./isArray":236}],263:[function(require,module,exports){
 var apply = require('./_apply'),
     toInteger = require('./toInteger');
 
@@ -28134,12 +29986,15 @@ var nativeMax = Math.max;
 
 /**
  * Creates a function that invokes `func` with the `this` binding of the
- * created function and arguments from `start` and beyond provided as an array.
+ * created function and arguments from `start` and beyond provided as
+ * an array.
  *
- * **Note:** This method is based on the [rest parameter](https://mdn.io/rest_parameters).
+ * **Note:** This method is based on the
+ * [rest parameter](https://mdn.io/rest_parameters).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Function
  * @param {Function} func The function to apply a rest parameter to.
  * @param {number} [start=func.length-1] The start position of the rest parameter.
@@ -28185,24 +30040,23 @@ function rest(func, start) {
 
 module.exports = rest;
 
-},{"./_apply":75,"./toInteger":239}],238:[function(require,module,exports){
+},{"./_apply":86,"./toInteger":265}],264:[function(require,module,exports){
 var baseCastPath = require('./_baseCastPath'),
-    get = require('./get'),
     isFunction = require('./isFunction'),
-    isKey = require('./_isKey'),
-    parent = require('./_parent');
+    isKey = require('./_isKey');
 
 /**
- * This method is like `_.get` except that if the resolved value is a function
- * it's invoked with the `this` binding of its parent object and its result
- * is returned.
+ * This method is like `_.get` except that if the resolved value is a
+ * function it's invoked with the `this` binding of its parent object and
+ * its result is returned.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Object
  * @param {Object} object The object to query.
  * @param {Array|string} path The path of the property to resolve.
- * @param {*} [defaultValue] The value returned if the resolved value is `undefined`.
+ * @param {*} [defaultValue] The value returned for `undefined` resolved values.
  * @returns {*} Returns the resolved value.
  * @example
  *
@@ -28221,22 +30075,30 @@ var baseCastPath = require('./_baseCastPath'),
  * // => 'default'
  */
 function result(object, path, defaultValue) {
-  if (!isKey(path, object)) {
-    path = baseCastPath(path);
-    var result = get(object, path);
-    object = parent(object, path);
-  } else {
-    result = object == null ? undefined : object[path];
+  path = isKey(path, object) ? [path] : baseCastPath(path);
+
+  var index = -1,
+      length = path.length;
+
+  // Ensure the loop is entered when path is empty.
+  if (!length) {
+    object = undefined;
+    length = 1;
   }
-  if (result === undefined) {
-    result = defaultValue;
+  while (++index < length) {
+    var value = object == null ? undefined : object[path[index]];
+    if (value === undefined) {
+      index = length;
+      value = defaultValue;
+    }
+    object = isFunction(value) ? value.call(object) : value;
   }
-  return isFunction(result) ? result.call(object) : result;
+  return object;
 }
 
 module.exports = result;
 
-},{"./_baseCastPath":91,"./_isKey":171,"./_parent":186,"./get":207,"./isFunction":216}],239:[function(require,module,exports){
+},{"./_baseCastPath":104,"./_isKey":194,"./isFunction":241}],265:[function(require,module,exports){
 var toNumber = require('./toNumber');
 
 /** Used as references for various `Number` constants. */
@@ -28246,10 +30108,12 @@ var INFINITY = 1 / 0,
 /**
  * Converts `value` to an integer.
  *
- * **Note:** This function is loosely based on [`ToInteger`](http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger).
+ * **Note:** This function is loosely based on
+ * [`ToInteger`](http://www.ecma-international.org/ecma-262/6.0/#sec-tointeger).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to convert.
  * @returns {number} Returns the converted integer.
@@ -28282,9 +30146,10 @@ function toInteger(value) {
 
 module.exports = toInteger;
 
-},{"./toNumber":240}],240:[function(require,module,exports){
+},{"./toNumber":266}],266:[function(require,module,exports){
 var isFunction = require('./isFunction'),
-    isObject = require('./isObject');
+    isObject = require('./isObject'),
+    isSymbol = require('./isSymbol');
 
 /** Used as references for various `Number` constants. */
 var NAN = 0 / 0;
@@ -28309,6 +30174,7 @@ var freeParseInt = parseInt;
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to process.
  * @returns {number} Returns the number.
@@ -28327,6 +30193,12 @@ var freeParseInt = parseInt;
  * // => 3
  */
 function toNumber(value) {
+  if (typeof value == 'number') {
+    return value;
+  }
+  if (isSymbol(value)) {
+    return NAN;
+  }
   if (isObject(value)) {
     var other = isFunction(value.valueOf) ? value.valueOf() : value;
     value = isObject(other) ? (other + '') : other;
@@ -28343,16 +30215,18 @@ function toNumber(value) {
 
 module.exports = toNumber;
 
-},{"./isFunction":216,"./isObject":220}],241:[function(require,module,exports){
+},{"./isFunction":241,"./isObject":245,"./isSymbol":250}],267:[function(require,module,exports){
 var baseToPairs = require('./_baseToPairs'),
     keys = require('./keys');
 
 /**
- * Creates an array of own enumerable key-value pairs for `object` which
- * can be consumed by `_.fromPairs`.
+ * Creates an array of own enumerable string keyed-value pairs for `object`
+ * which can be consumed by `_.fromPairs`.
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
+ * @alias entries
  * @category Object
  * @param {Object} object The object to query.
  * @returns {Array} Returns the new array of key-value pairs.
@@ -28374,16 +30248,17 @@ function toPairs(object) {
 
 module.exports = toPairs;
 
-},{"./_baseToPairs":120,"./keys":228}],242:[function(require,module,exports){
+},{"./_baseToPairs":136,"./keys":253}],268:[function(require,module,exports){
 var copyObject = require('./_copyObject'),
     keysIn = require('./keysIn');
 
 /**
- * Converts `value` to a plain object flattening inherited enumerable
- * properties of `value` to own properties of the plain object.
+ * Converts `value` to a plain object flattening inherited enumerable string
+ * keyed properties of `value` to own properties of the plain object.
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Lang
  * @param {*} value The value to convert.
  * @returns {Object} Returns the converted plain object.
@@ -28407,7 +30282,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"./_copyObject":133,"./keysIn":229}],243:[function(require,module,exports){
+},{"./_copyObject":153,"./keysIn":254}],269:[function(require,module,exports){
 var Symbol = require('./_Symbol'),
     isSymbol = require('./isSymbol');
 
@@ -28424,6 +30299,7 @@ var symbolProto = Symbol ? Symbol.prototype : undefined,
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to process.
  * @returns {string} Returns the string.
@@ -28455,16 +30331,17 @@ function toString(value) {
 
 module.exports = toString;
 
-},{"./_Symbol":70,"./isSymbol":225}],244:[function(require,module,exports){
+},{"./_Symbol":81,"./isSymbol":250}],270:[function(require,module,exports){
 var baseValues = require('./_baseValues'),
     keys = require('./keys');
 
 /**
- * Creates an array of the own enumerable property values of `object`.
+ * Creates an array of the own enumerable string keyed property values of `object`.
  *
  * **Note:** Non-object values are coerced to objects.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Object
  * @param {Object} object The object to query.
@@ -28490,7 +30367,7 @@ function values(object) {
 
 module.exports = values;
 
-},{"./_baseValues":121,"./keys":228}],245:[function(require,module,exports){
+},{"./_baseValues":138,"./keys":253}],271:[function(require,module,exports){
 var LazyWrapper = require('./_LazyWrapper'),
     LodashWrapper = require('./_LodashWrapper'),
     baseLodash = require('./_baseLodash'),
@@ -28506,25 +30383,25 @@ var hasOwnProperty = objectProto.hasOwnProperty;
 
 /**
  * Creates a `lodash` object which wraps `value` to enable implicit method
- * chaining. Methods that operate on and return arrays, collections, and
- * functions can be chained together. Methods that retrieve a single value or
- * may return a primitive value will automatically end the chain sequence and
- * return the unwrapped value. Otherwise, the value must be unwrapped with
- * `_#value`.
+ * chain sequences. Methods that operate on and return arrays, collections,
+ * and functions can be chained together. Methods that retrieve a single value
+ * or may return a primitive value will automatically end the chain sequence
+ * and return the unwrapped value. Otherwise, the value must be unwrapped
+ * with `_#value`.
  *
- * Explicit chaining, which must be unwrapped with `_#value` in all cases,
- * may be enabled using `_.chain`.
+ * Explicit chain sequences, which must be unwrapped with `_#value`, may be
+ * enabled using `_.chain`.
  *
  * The execution of chained methods is lazy, that is, it's deferred until
  * `_#value` is implicitly or explicitly called.
  *
- * Lazy evaluation allows several methods to support shortcut fusion. Shortcut
- * fusion is an optimization to merge iteratee calls; this avoids the creation
- * of intermediate arrays and can greatly reduce the number of iteratee executions.
- * Sections of a chain sequence qualify for shortcut fusion if the section is
- * applied to an array of at least two hundred elements and any iteratees
- * accept only one argument. The heuristic for whether a section qualifies
- * for shortcut fusion is subject to change.
+ * Lazy evaluation allows several methods to support shortcut fusion.
+ * Shortcut fusion is an optimization to merge iteratee calls; this avoids
+ * the creation of intermediate arrays and can greatly reduce the number of
+ * iteratee executions. Sections of a chain sequence qualify for shortcut
+ * fusion if the section is applied to an array of at least two hundred
+ * elements and any iteratees accept only one argument. The heuristic for
+ * whether a section qualifies for shortcut fusion is subject to change.
  *
  * Chaining is supported in custom builds as long as the `_#value` method is
  * directly or indirectly included in the build.
@@ -28549,48 +30426,49 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * `curry`, `debounce`, `defaults`, `defaultsDeep`, `defer`, `delay`,
  * `difference`, `differenceBy`, `differenceWith`, `drop`, `dropRight`,
  * `dropRightWhile`, `dropWhile`, `extend`, `extendWith`, `fill`, `filter`,
- * `flatten`, `flattenDeep`, `flattenDepth`, `flip`, `flow`, `flowRight`,
- * `fromPairs`, `functions`, `functionsIn`, `groupBy`, `initial`, `intersection`,
- * `intersectionBy`, `intersectionWith`, `invert`, `invertBy`, `invokeMap`,
- * `iteratee`, `keyBy`, `keys`, `keysIn`, `map`, `mapKeys`, `mapValues`,
- * `matches`, `matchesProperty`, `memoize`, `merge`, `mergeWith`, `method`,
- * `methodOf`, `mixin`, `negate`, `nthArg`, `omit`, `omitBy`, `once`, `orderBy`,
- * `over`, `overArgs`, `overEvery`, `overSome`, `partial`, `partialRight`,
- * `partition`, `pick`, `pickBy`, `plant`, `property`, `propertyOf`, `pull`,
- * `pullAll`, `pullAllBy`, `pullAllWith`, `pullAt`, `push`, `range`,
- * `rangeRight`, `rearg`, `reject`, `remove`, `rest`, `reverse`, `sampleSize`,
- * `set`, `setWith`, `shuffle`, `slice`, `sort`, `sortBy`, `splice`, `spread`,
- * `tail`, `take`, `takeRight`, `takeRightWhile`, `takeWhile`, `tap`, `throttle`,
- * `thru`, `toArray`, `toPairs`, `toPairsIn`, `toPath`, `toPlainObject`,
- * `transform`, `unary`, `union`, `unionBy`, `unionWith`, `uniq`, `uniqBy`,
- * `uniqWith`, `unset`, `unshift`, `unzip`, `unzipWith`, `update`, `values`,
- * `valuesIn`, `without`, `wrap`, `xor`, `xorBy`, `xorWith`, `zip`, `zipObject`,
- * `zipObjectDeep`, and `zipWith`
+ * `flatMap`, `flatMapDeep`, `flatMapDepth`, `flatten`, `flattenDeep`,
+ * `flattenDepth`, `flip`, `flow`, `flowRight`, `fromPairs`, `functions`,
+ * `functionsIn`, `groupBy`, `initial`, `intersection`, `intersectionBy`,
+ * `intersectionWith`, `invert`, `invertBy`, `invokeMap`, `iteratee`, `keyBy`,
+ * `keys`, `keysIn`, `map`, `mapKeys`, `mapValues`, `matches`, `matchesProperty`,
+ * `memoize`, `merge`, `mergeWith`, `method`, `methodOf`, `mixin`, `negate`,
+ * `nthArg`, `omit`, `omitBy`, `once`, `orderBy`, `over`, `overArgs`,
+ * `overEvery`, `overSome`, `partial`, `partialRight`, `partition`, `pick`,
+ * `pickBy`, `plant`, `property`, `propertyOf`, `pull`, `pullAll`, `pullAllBy`,
+ * `pullAllWith`, `pullAt`, `push`, `range`, `rangeRight`, `rearg`, `reject`,
+ * `remove`, `rest`, `reverse`, `sampleSize`, `set`, `setWith`, `shuffle`,
+ * `slice`, `sort`, `sortBy`, `splice`, `spread`, `tail`, `take`, `takeRight`,
+ * `takeRightWhile`, `takeWhile`, `tap`, `throttle`, `thru`, `toArray`,
+ * `toPairs`, `toPairsIn`, `toPath`, `toPlainObject`, `transform`, `unary`,
+ * `union`, `unionBy`, `unionWith`, `uniq`, `uniqBy`, `uniqWith`, `unset`,
+ * `unshift`, `unzip`, `unzipWith`, `update`, `updateWith`, `values`,
+ * `valuesIn`, `without`, `wrap`, `xor`, `xorBy`, `xorWith`, `zip`,
+ * `zipObject`, `zipObjectDeep`, and `zipWith`
  *
  * The wrapper methods that are **not** chainable by default are:
  * `add`, `attempt`, `camelCase`, `capitalize`, `ceil`, `clamp`, `clone`,
- * `cloneDeep`, `cloneDeepWith`, `cloneWith`, `deburr`, `each`, `eachRight`,
- * `endsWith`, `eq`, `escape`, `escapeRegExp`, `every`, `find`, `findIndex`,
- * `findKey`, `findLast`, `findLastIndex`, `findLastKey`, `first`, `floor`,
- * `forEach`, `forEachRight`, `forIn`, `forInRight`, `forOwn`, `forOwnRight`,
- * `get`, `gt`, `gte`, `has`, `hasIn`, `head`, `identity`, `includes`,
- * `indexOf`, `inRange`, `invoke`, `isArguments`, `isArray`, `isArrayBuffer`,
- * `isArrayLike`, `isArrayLikeObject`, `isBoolean`, `isBuffer`, `isDate`,
- * `isElement`, `isEmpty`, `isEqual`, `isEqualWith`, `isError`, `isFinite`,
- * `isFunction`, `isInteger`, `isLength`, `isMap`, `isMatch`, `isMatchWith`,
- * `isNaN`, `isNative`, `isNil`, `isNull`, `isNumber`, `isObject`, `isObjectLike`,
- * `isPlainObject`, `isRegExp`, `isSafeInteger`, `isSet`, `isString`,
- * `isUndefined`, `isTypedArray`, `isWeakMap`, `isWeakSet`, `join`, `kebabCase`,
- * `last`, `lastIndexOf`, `lowerCase`, `lowerFirst`, `lt`, `lte`, `max`,
- * `maxBy`, `mean`, `min`, `minBy`, `noConflict`, `noop`, `now`, `pad`,
- * `padEnd`, `padStart`, `parseInt`, `pop`, `random`, `reduce`, `reduceRight`,
- * `repeat`, `result`, `round`, `runInContext`, `sample`, `shift`, `size`,
- * `snakeCase`, `some`, `sortedIndex`, `sortedIndexBy`, `sortedLastIndex`,
- * `sortedLastIndexBy`, `startCase`, `startsWith`, `subtract`, `sum`, `sumBy`,
- * `template`, `times`, `toInteger`, `toJSON`, `toLength`, `toLower`,
- * `toNumber`, `toSafeInteger`, `toString`, `toUpper`, `trim`, `trimEnd`,
- * `trimStart`, `truncate`, `unescape`, `uniqueId`, `upperCase`, `upperFirst`,
- * `value`, and `words`
+ * `cloneDeep`, `cloneDeepWith`, `cloneWith`, `deburr`, `divide`, `each`,
+ * `eachRight`, `endsWith`, `eq`, `escape`, `escapeRegExp`, `every`, `find`,
+ * `findIndex`, `findKey`, `findLast`, `findLastIndex`, `findLastKey`, `first`,
+ * `floor`, `forEach`, `forEachRight`, `forIn`, `forInRight`, `forOwn`,
+ * `forOwnRight`, `get`, `gt`, `gte`, `has`, `hasIn`, `head`, `identity`,
+ * `includes`, `indexOf`, `inRange`, `invoke`, `isArguments`, `isArray`,
+ * `isArrayBuffer`, `isArrayLike`, `isArrayLikeObject`, `isBoolean`, `isBuffer`,
+ * `isDate`, `isElement`, `isEmpty`, `isEqual`, `isEqualWith`, `isError`,
+ * `isFinite`, `isFunction`, `isInteger`, `isLength`, `isMap`, `isMatch`,
+ * `isMatchWith`, `isNaN`, `isNative`, `isNil`, `isNull`, `isNumber`,
+ * `isObject`, `isObjectLike`, `isPlainObject`, `isRegExp`, `isSafeInteger`,
+ * `isSet`, `isString`, `isUndefined`, `isTypedArray`, `isWeakMap`, `isWeakSet`,
+ * `join`, `kebabCase`, `last`, `lastIndexOf`, `lowerCase`, `lowerFirst`,
+ * `lt`, `lte`, `max`, `maxBy`, `mean`, `meanBy`, `min`, `minBy`, `multiply`,
+ * `noConflict`, `noop`, `now`, `pad`, `padEnd`, `padStart`, `parseInt`,
+ * `pop`, `random`, `reduce`, `reduceRight`, `repeat`, `result`, `round`,
+ * `runInContext`, `sample`, `shift`, `size`, `snakeCase`, `some`, `sortedIndex`,
+ * `sortedIndexBy`, `sortedLastIndex`, `sortedLastIndexBy`, `startCase`,
+ * `startsWith`, `subtract`, `sum`, `sumBy`, `template`, `times`, `toInteger`,
+ * `toJSON`, `toLength`, `toLower`, `toNumber`, `toSafeInteger`, `toString`,
+ * `toUpper`, `trim`, `trimEnd`, `trimStart`, `truncate`, `unescape`,
+ * `uniqueId`, `upperCase`, `upperFirst`, `value`, and `words`
  *
  * @name _
  * @constructor
@@ -28636,7 +30514,7 @@ lodash.prototype.constructor = lodash;
 
 module.exports = lodash;
 
-},{"./_LazyWrapper":63,"./_LodashWrapper":64,"./_baseLodash":108,"./_wrapperClone":199,"./isArray":211,"./isObjectLike":221}],246:[function(require,module,exports){
+},{"./_LazyWrapper":72,"./_LodashWrapper":73,"./_baseLodash":125,"./_wrapperClone":223,"./isArray":236,"./isObjectLike":246}],272:[function(require,module,exports){
 /*
 * loglevel - https://github.com/pimterry/loglevel
 *
@@ -28861,7 +30739,7 @@ module.exports = lodash;
     return defaultLogger;
 }));
 
-},{}],247:[function(require,module,exports){
+},{}],273:[function(require,module,exports){
 var trim = require('trim')
   , forEach = require('for-each')
   , isArray = function(arg) {
@@ -28893,7 +30771,7 @@ module.exports = function (headers) {
 
   return result
 }
-},{"for-each":11,"trim":262}],248:[function(require,module,exports){
+},{"for-each":20,"trim":288}],274:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -29121,8 +30999,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-
-},{"_process":249}],249:[function(require,module,exports){
+},{"_process":275}],275:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -29215,17 +31092,16 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],250:[function(require,module,exports){
+},{}],276:[function(require,module,exports){
 (function (process){
 module.exports = process.env.PROMISE_QUEUE_COVERAGE ?
     require('./lib-cov') :
     require('./lib');
 
 }).call(this,require('_process'))
+},{"./lib":278,"./lib-cov":277,"_process":275}],277:[function(require,module,exports){
 
-},{"./lib":252,"./lib-cov":251,"_process":249}],251:[function(require,module,exports){
-
-},{}],252:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 /* global define, Promise */
 (function (root, factory) {
     'use strict';
@@ -29405,7 +31281,7 @@ module.exports = process.env.PROMISE_QUEUE_COVERAGE ?
     return Queue;
 });
 
-},{}],253:[function(require,module,exports){
+},{}],279:[function(require,module,exports){
 (function (global){
 /*! https://mths.be/punycode v1.4.1 by @mathias */
 ;(function(root) {
@@ -29942,8 +31818,7 @@ module.exports = process.env.PROMISE_QUEUE_COVERAGE ?
 }(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{}],254:[function(require,module,exports){
+},{}],280:[function(require,module,exports){
 'use strict';
 
 var Stringify = require('./stringify');
@@ -29954,7 +31829,7 @@ module.exports = {
     parse: Parse
 };
 
-},{"./parse":255,"./stringify":256}],255:[function(require,module,exports){
+},{"./parse":281,"./stringify":282}],281:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -30120,7 +31995,7 @@ module.exports = function (str, opts) {
     return Utils.compact(obj);
 };
 
-},{"./utils":257}],256:[function(require,module,exports){
+},{"./utils":283}],282:[function(require,module,exports){
 'use strict';
 
 var Utils = require('./utils');
@@ -30253,7 +32128,7 @@ module.exports = function (object, opts) {
     return keys.join(delimiter);
 };
 
-},{"./utils":257}],257:[function(require,module,exports){
+},{"./utils":283}],283:[function(require,module,exports){
 'use strict';
 
 var hexTable = (function () {
@@ -30417,7 +32292,7 @@ exports.isBuffer = function (obj) {
     return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
 };
 
-},{}],258:[function(require,module,exports){
+},{}],284:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -30503,7 +32378,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],259:[function(require,module,exports){
+},{}],285:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -30590,13 +32465,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],260:[function(require,module,exports){
+},{}],286:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":258,"./encode":259}],261:[function(require,module,exports){
+},{"./decode":284,"./encode":285}],287:[function(require,module,exports){
 /*
  * Sift 3.x
  *
@@ -31105,7 +32980,7 @@ exports.encode = exports.stringify = require('./encode');
   }
 })();
 
-},{}],262:[function(require,module,exports){
+},{}],288:[function(require,module,exports){
 
 exports = module.exports = trim;
 
@@ -31121,7 +32996,7 @@ exports.right = function(str){
   return str.replace(/\s*$/, '');
 };
 
-},{}],263:[function(require,module,exports){
+},{}],289:[function(require,module,exports){
 /**
  * Export `uid`
  */
@@ -31140,7 +33015,7 @@ function uid(len) {
   return Math.random().toString(35).substr(2, len);
 }
 
-},{}],264:[function(require,module,exports){
+},{}],290:[function(require,module,exports){
 // Generated by CoffeeScript 1.10.0
 var slice = [].slice;
 
@@ -31578,7 +33453,7 @@ var slice = [].slice;
   return UrlPattern;
 });
 
-},{}],265:[function(require,module,exports){
+},{}],291:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -32312,7 +34187,7 @@ Url.prototype.parseHost = function() {
   if (host) this.hostname = host;
 };
 
-},{"./util":266,"punycode":253,"querystring":260}],266:[function(require,module,exports){
+},{"./util":292,"punycode":279,"querystring":286}],292:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -32330,14 +34205,14 @@ module.exports = {
   }
 };
 
-},{}],267:[function(require,module,exports){
+},{}],293:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],268:[function(require,module,exports){
+},{}],294:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -32927,8 +34802,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-
-},{"./support/isBuffer":267,"_process":249,"inherits":15}],269:[function(require,module,exports){
+},{"./support/isBuffer":293,"_process":275,"inherits":24}],295:[function(require,module,exports){
 module.exports={
   "name": "kinvey-titanium-sdk",
   "version": "3.0.0-beta.13",
@@ -32948,19 +34822,19 @@ module.exports={
   "contributors": [
     "Thomas Conner <thomas@kinvey.com>"
   ],
-  "main": "./src/index.js",
+  "main": "./build/index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:Kinvey/kinvey-titanium-sdk"
   },
   "scripts": {},
   "dependencies": {
-    "kinvey-javascript-sdk-core": "3.0.0-beta.12",
-    "lodash": "^4.3.0",
+    "kinvey-javascript-sdk-core": "3.0.0-beta.14",
+    "lodash": "^4.8.2",
     "parse-headers": "^2.0.1"
   },
   "devDependencies": {
-    "babel-eslint": "6.0.0-beta.6",
+    "babel-eslint": "^6.0.2",
     "babel-preset-es2015": "^6.0.0",
     "babel-preset-stage-2": "^6.0.15",
     "babelify": "^7.2.0",
@@ -32969,14 +34843,16 @@ module.exports={
     "dotenv": "^2.0.0",
     "envify": "^3.4.0",
     "eslint-config-airbnb": "^6.0.0",
+    "eslint-plugin-react": "^4.2.3",
     "exorcist": "^0.4.0",
     "gulp": "^3.9.0",
-    "gulp-bump": "^1.0.0",
+    "gulp-babel": "^6.1.2",
+    "gulp-bump": "^2.1.0",
     "gulp-eslint": "^2.0.0",
-    "gulp-git": "^1.7.0",
+    "gulp-git": "^1.7.1",
     "gulp-if": "^2.0.0",
     "gulp-plumber": "^1.0.1",
-    "gulp-prompt": "^0.1.2",
+    "gulp-prompt": "^0.2.0",
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "^1.6.0",
     "gulp-uglify": "^1.5.1",
@@ -32994,1098 +34870,8 @@ module.exports={
     "Kinvey",
     "JavaScript",
     "Titanium"
-  ],
-  "browserify": {
-    "transform": [["babelify", {
-      "presets": ["es2015", "stage-2"],
-      "ignore": "/\/node_modules\/(?!kinvey-javascript-sdk-core\/)/"
-    }]]
-  }
+  ]
 }
 
-},{}],270:[function(require,module,exports){
-'use strict';
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
+},{}]},{},[5])(5)
 });
-exports.CacheMiddleware = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _get = function get(object, property, receiver) {
-  if (object === null) object = Function.prototype;var desc = Object.getOwnPropertyDescriptor(object, property);if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc) {
-    return desc.value;
-  } else {
-    var getter = desc.get;if (getter === undefined) {
-      return undefined;
-    }return getter.call(receiver);
-  }
-};
-
-var _middleware = require('kinvey-javascript-sdk-core/src/rack/middleware');
-
-var _enums = require('kinvey-javascript-sdk-core/src/enums');
-
-var _db = require('./db');
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }return call && ((typeof call === "undefined" ? "undefined" : _typeof(call)) === "object" || typeof call === "function") ? call : self;
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : _typeof(superClass)));
-  }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-}
-
-var CacheMiddleware = exports.CacheMiddleware = function (_KinveyMiddleware) {
-  _inherits(CacheMiddleware, _KinveyMiddleware);
-
-  function CacheMiddleware() {
-    var name = arguments.length <= 0 || arguments[0] === undefined ? 'Kinvey Titanium Cache Middleware' : arguments[0];
-    var adapters = arguments.length <= 1 || arguments[1] === undefined ? [_db.DBAdapter.TitaniumDB, _db.DBAdapter.Memory] : arguments[1];
-
-    _classCallCheck(this, CacheMiddleware);
-
-    return _possibleConstructorReturn(this, Object.getPrototypeOf(CacheMiddleware).call(this, name, adapters));
-  }
-
-  _createClass(CacheMiddleware, [{
-    key: 'handle',
-    value: function handle(request) {
-      var _this2 = this;
-
-      return _get(Object.getPrototypeOf(CacheMiddleware.prototype), 'handle', this).call(this, request).then(function (_ref) {
-        var appKey = _ref.appKey;
-        var collection = _ref.collection;
-        var id = _ref.id;
-
-        var method = request.method;
-        var query = request.query;
-        var data = request.data;
-        var db = new _db.DB(appKey, _this2.adapters);
-        var promise = void 0;
-
-        if (method === _enums.HttpMethod.GET) {
-          if (id) {
-            if (id === '_count') {
-              promise = db.count(collection, query);
-            } else if (id === '_group') {
-              promise = db.group(collection, data);
-            } else {
-              promise = db.findById(collection, id);
-            }
-          } else {
-            promise = db.find(collection, query);
-          }
-        } else if (method === _enums.HttpMethod.POST || method === _enums.HttpMethod.PUT) {
-          promise = db.save(collection, data);
-        } else if (method === _enums.HttpMethod.DELETE) {
-          if (id) {
-            promise = db.removeById(collection, id);
-          } else {
-            promise = db.remove(collection, query);
-          }
-        }
-
-        return promise.then(function (result) {
-          var statusCode = _enums.StatusCode.Ok;
-
-          if (method === _enums.HttpMethod.POST) {
-            statusCode = _enums.StatusCode.Created;
-          }
-
-          request.response = {
-            statusCode: statusCode,
-            headers: {},
-            data: result
-          };
-
-          return request;
-        });
-      });
-    }
-  }]);
-
-  return CacheMiddleware;
-}(_middleware.KinveyMiddleware);
-
-},{"./db":271,"kinvey-javascript-sdk-core/src/enums":23,"kinvey-javascript-sdk-core/src/rack/middleware":31}],271:[function(require,module,exports){
-'use strict';
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.DB = exports.DBAdapter = undefined;
-
-var _db = require('kinvey-javascript-sdk-core/src/rack/persistence/db');
-
-var _memory = require('kinvey-javascript-sdk-core/src/rack/persistence/adapters/memory');
-
-var _titaniumdb = require('./titaniumdb');
-
-var _log = require('kinvey-javascript-sdk-core/src/log');
-
-var _forEach = require('lodash/forEach');
-
-var _forEach2 = _interopRequireDefault(_forEach);
-
-var _isArray = require('lodash/isArray');
-
-var _isArray2 = _interopRequireDefault(_isArray);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }return call && ((typeof call === 'undefined' ? 'undefined' : _typeof(call)) === "object" || typeof call === "function") ? call : self;
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === 'undefined' ? 'undefined' : _typeof(superClass)));
-  }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-}
-
-var DBAdapter = {
-  Memory: 'Memory',
-  TitaniumDB: 'TitaniumDB'
-};
-Object.freeze(DBAdapter);
-exports.DBAdapter = DBAdapter;
-
-var DB = exports.DB = function (_CoreDB) {
-  _inherits(DB, _CoreDB);
-
-  function DB() {
-    var dbName = arguments.length <= 0 || arguments[0] === undefined ? 'kinvey' : arguments[0];
-    var adapters = arguments.length <= 1 || arguments[1] === undefined ? [DBAdapter.TitaniumDB, DBAdapter.Memory] : arguments[1];
-
-    _classCallCheck(this, DB);
-
-    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DB).call(this, dbName, []));
-
-    if (!(0, _isArray2.default)(adapters)) {
-      adapters = [adapters];
-    }
-
-    (0, _forEach2.default)(adapters, function (adapter) {
-      switch (adapter) {
-        case DBAdapter.Memory:
-          if (_memory.Memory.isSupported()) {
-            _this.adapter = new _memory.Memory(dbName);
-            return false;
-          }
-
-          break;
-        case DBAdapter.TitaniumDB:
-          if (_titaniumdb.TitaniumDB.isSupported()) {
-            _this.adapter = new _titaniumdb.TitaniumDB(dbName);
-            return false;
-          }
-
-          break;
-        default:
-          _log.Log.warn('The ' + adapter + ' adapter is is not recognized.');
-      }
-
-      return true;
-    });
-
-    if (!_this.adapter) {
-      if (_memory.Memory.isSupported()) {
-        _log.Log.error('Provided adapters are unsupported on this platform. ' + 'Defaulting to Memory adapter.', adapters);
-        _this.adapter = new _memory.Memory(dbName);
-      } else {
-        _log.Log.error('Provided adapters are unsupported on this platform.', adapters);
-      }
-    }
-    return _this;
-  }
-
-  return DB;
-}(_db.DB);
-
-},{"./titaniumdb":277,"kinvey-javascript-sdk-core/src/log":26,"kinvey-javascript-sdk-core/src/rack/persistence/adapters/memory":37,"kinvey-javascript-sdk-core/src/rack/persistence/db":39,"lodash/forEach":206,"lodash/isArray":211}],272:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.DeviceAdapter = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _package = require('../package.json');
-
-var _package2 = _interopRequireDefault(_package);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-var DeviceAdapter = exports.DeviceAdapter = function () {
-  function DeviceAdapter() {
-    _classCallCheck(this, DeviceAdapter);
-  }
-
-  _createClass(DeviceAdapter, [{
-    key: 'toJSON',
-    value: function toJSON() {
-      return {
-        device: {
-          manufacturer: Titanium.Platform.manufacturer,
-          model: Titanium.Platfrom.model
-        },
-        environment: 'titanium',
-        library: {
-          name: 'titanium',
-          version: Titanium.getVersion()
-        },
-        os: {
-          name: Titanium.Platfrom.osname,
-          version: Titanium.Platfrom.version
-        },
-        sdk: {
-          name: _package2.default.name,
-          version: _package2.default.version
-        }
-      };
-    }
-  }]);
-
-  return DeviceAdapter;
-}();
-
-},{"../package.json":269}],273:[function(require,module,exports){
-'use strict';
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.HttpMiddleware = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _get = function get(object, property, receiver) {
-  if (object === null) object = Function.prototype;var desc = Object.getOwnPropertyDescriptor(object, property);if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc) {
-    return desc.value;
-  } else {
-    var getter = desc.get;if (getter === undefined) {
-      return undefined;
-    }return getter.call(receiver);
-  }
-};
-
-var _middleware = require('kinvey-javascript-sdk-core/src/rack/middleware');
-
-var _utils = require('./utils');
-
-var _parseHeaders = require('parse-headers');
-
-var _parseHeaders2 = _interopRequireDefault(_parseHeaders);
-
-var _isString = require('lodash/isString');
-
-var _isString2 = _interopRequireDefault(_isString);
-
-var _isFunction = require('lodash/isFunction');
-
-var _isFunction2 = _interopRequireDefault(_isFunction);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-function _possibleConstructorReturn(self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }return call && ((typeof call === "undefined" ? "undefined" : _typeof(call)) === "object" || typeof call === "function") ? call : self;
-}
-
-function _inherits(subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : _typeof(superClass)));
-  }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-}
-
-var HttpMiddleware = exports.HttpMiddleware = function (_KinveyMiddleware) {
-  _inherits(HttpMiddleware, _KinveyMiddleware);
-
-  function HttpMiddleware() {
-    var name = arguments.length <= 0 || arguments[0] === undefined ? 'Kinvey Titanium Http Middleware' : arguments[0];
-
-    _classCallCheck(this, HttpMiddleware);
-
-    return _possibleConstructorReturn(this, Object.getPrototypeOf(HttpMiddleware).call(this, name));
-  }
-
-  _createClass(HttpMiddleware, [{
-    key: 'handle',
-    value: function handle(request) {
-      return _get(Object.getPrototypeOf(HttpMiddleware.prototype), 'handle', this).call(this, request).then(function () {
-        var promise = new Promise(function (resolve, reject) {
-          var xhr = void 0;
-
-          if ((0, _utils.isMobileWeb)()) {
-            xhr = new XMLHttpRequest();
-
-            xhr.ontimeout = function () {
-              reject(new Error('timeout'));
-            };
-          } else {
-            xhr = Titanium.Network.createHTTPClient();
-            xhr.autoRedirect = request.followRedirect || true;
-
-            if ((0, _isFunction2.default)(xhr.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
-              xhr.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
-            }
-          }
-
-          xhr.onload = xhr.onerror = function (e) {
-            var status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
-
-            if ((0, _isString2.default)(e.error) && e.error.toLowerCase().indexOf('timed out') !== -1) {
-              e.type = 'timeout';
-            }
-
-            if (status >= 200 && status < 300 || status === 304) {
-              request.response = {
-                statusCode: status,
-                headers: (0, _parseHeaders2.default)(xhr.allResponseHeaders),
-                data: xhr.responseText
-              };
-
-              return resolve(request);
-            }
-
-            return reject(e.error);
-          };
-
-          xhr.open(request.method, request.url);
-
-          for (var name in request.headers) {
-            if (request.headers.hasOwnProperty(name)) {
-              xhr.setRequestHeader(name, request.headers[name]);
-            }
-          }
-
-          xhr.send(request.data);
-        });
-
-        return promise;
-      });
-    }
-  }]);
-
-  return HttpMiddleware;
-}(_middleware.KinveyMiddleware);
-
-},{"./utils":278,"kinvey-javascript-sdk-core/src/rack/middleware":31,"lodash/isFunction":216,"lodash/isString":224,"parse-headers":247}],274:[function(require,module,exports){
-'use strict';
-
-var _kinveyJavascriptSdkCore = require('kinvey-javascript-sdk-core');
-
-var _rack = require('kinvey-javascript-sdk-core/src/rack/rack');
-
-var _cache = require('kinvey-javascript-sdk-core/src/rack/middleware/cache');
-
-var _cache2 = require('./cache');
-
-var _serialize = require('kinvey-javascript-sdk-core/src/rack/middleware/serialize');
-
-var _http = require('./http');
-
-var _device = require('kinvey-javascript-sdk-core/src/utils/device');
-
-var _device2 = require('./device');
-
-var _popup = require('kinvey-javascript-sdk-core/src/utils/popup');
-
-var _popup2 = require('./popup');
-
-var _push = require('./push');
-
-var cacheRack = _rack.CacheRack.sharedInstance();
-cacheRack.swap(_cache.CacheMiddleware, new _cache2.CacheMiddleware());
-
-var networkRack = _rack.NetworkRack.sharedInstance();
-networkRack.useAfter(_serialize.SerializeMiddleware, new _http.HttpMiddleware());
-
-_device.Device.use(new _device2.DeviceAdapter());
-
-_popup.Popup.use(new _popup2.PopupAdapter());
-
-_kinveyJavascriptSdkCore.Kinvey.Push = _push.Push;
-
-module.exports = _kinveyJavascriptSdkCore.Kinvey;
-
-},{"./cache":270,"./device":272,"./http":273,"./popup":275,"./push":276,"kinvey-javascript-sdk-core":25,"kinvey-javascript-sdk-core/src/rack/middleware/cache":32,"kinvey-javascript-sdk-core/src/rack/middleware/serialize":34,"kinvey-javascript-sdk-core/src/rack/rack":40,"kinvey-javascript-sdk-core/src/utils/device":55,"kinvey-javascript-sdk-core/src/utils/popup":57}],275:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.PopupAdapter = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _utils = require('./utils');
-
-var _bind = require('lodash/bind');
-
-var _bind2 = _interopRequireDefault(_bind);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-var PopupAdapter = exports.PopupAdapter = function () {
-  function PopupAdapter() {
-    _classCallCheck(this, PopupAdapter);
-  }
-
-  _createClass(PopupAdapter, [{
-    key: 'open',
-    value: function open() {
-      var _this = this;
-
-      this.eventListeners = {
-        loadHandler: (0, _bind2.default)(this.loadHandler, this),
-        clickHandler: (0, _bind2.default)(this.clickHandler, this),
-        closeHandler: (0, _bind2.default)(this.closeHandler, this)
-      };
-
-      var promise = new Promise(function (resolve) {
-        _this.tiWebView = Titanium.UI.createWebView({
-          width: '100%',
-          height: '100%',
-          url: _this.url
-        });
-
-        _this.popup = Titanium.UI.createWindow({
-          backgroundColor: 'white',
-          barColor: '#000',
-          title: 'Mobile Identity Connect',
-          modal: true
-        });
-        _this.popup.add(_this.tiWebView);
-
-        if ((0, _utils.isiOS)()) {
-          _this.tiWin = Titanium.UI.createWindow({
-            backgroundColor: 'white',
-            barColor: '#e3e3e3',
-            title: 'Mobile Identity Connect'
-          });
-          _this.tiWin.add(_this.tiWebView);
-
-          _this.tiCloseButton = Titanium.UI.createButton({
-            title: 'Close',
-            style: Titanium.UI.iPhone.SystemButtonStyle.DONE
-          });
-          _this.tiWin.setLeftNavButton(_this.tiCloseButton);
-          _this.tiCloseButton.addEventListener('click', _this.eventListeners.clickHandler);
-
-          _this.popup = Titanium.UI.iOS.createNavigationWindow({
-            backgroundColor: 'white',
-            window: _this.tiWin,
-            modal: true
-          });
-        } else if ((0, _utils.isAndroid)()) {
-          _this.popup.addEventListener('androidback', _this.eventListeners.closeHandler);
-        }
-
-        _this.tiWebView.addEventListener('load', _this.eventListeners.loadHandler);
-        _this.tiWebView.addEventListener('error', _this.eventListeners.loadHandler);
-        _this.popup.addEventListener('close', _this.eventListeners.closeHandler);
-        _this.popup.open();
-        resolve();
-      });
-      return promise;
-    }
-  }, {
-    key: 'close',
-    value: function close() {
-      var _this2 = this;
-
-      var promise = new Promise(function (resolve) {
-        _this2.popup.close();
-        resolve();
-      });
-      return promise;
-    }
-  }, {
-    key: 'loadHandler',
-    value: function loadHandler(event) {
-      this.emit('loaded', event.url);
-    }
-  }, {
-    key: 'clickHandler',
-    value: function clickHandler() {
-      this.close();
-    }
-  }, {
-    key: 'closeHandler',
-    value: function closeHandler() {
-      this.tiWebView.removeEventListener('load', this.eventListeners.loadHandler);
-      this.tiWebView.removeEventListener('error', this.eventListeners.loadHandler);
-      this.popup.removeEventListener('close', this.eventListeners.closeHandler);
-
-      if ((0, _utils.isiOS)()) {
-        this.tiCloseButton.removeEventListener('click', this.eventListeners.clickHandler);
-      } else if ((0, _utils.isAndroid)()) {
-        this.popup.close();
-        this.popup.removeEventListener('androidback', this.eventListeners.closeHandler);
-      }
-
-      this.emit('closed');
-    }
-  }]);
-
-  return PopupAdapter;
-}();
-
-},{"./utils":278,"lodash/bind":201}],276:[function(require,module,exports){
-(function (process){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.Push = undefined;
-
-var _errors = require('kinvey-javascript-sdk-core/src/errors');
-
-var _events = require('events');
-
-var _network = require('kinvey-javascript-sdk-core/src/requests/network');
-
-var _datastore = require('kinvey-javascript-sdk-core/src/stores/datastore');
-
-var _enums = require('kinvey-javascript-sdk-core/src/enums');
-
-var _user = require('kinvey-javascript-sdk-core/src/user');
-
-var _client = require('kinvey-javascript-sdk-core/src/client');
-
-var _query = require('kinvey-javascript-sdk-core/src/query');
-
-var _utils = require('./utils');
-
-var _assign = require('lodash/assign');
-
-var _assign2 = _interopRequireDefault(_assign);
-
-var _url = require('url');
-
-var _url2 = _interopRequireDefault(_url);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
-var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
-var deviceCollectionName = process.env.KINVEY_DEVICE_COLLECTION_NAME || 'kinvey_device';
-var emitter = new _events.EventEmitter();
-
-var Push = exports.Push = {
-  listeners: function listeners() {
-    return emitter.listeners(notificationEvent);
-  },
-  onNotification: function onNotification(listener) {
-    return emitter.on(notificationEvent, listener);
-  },
-  onceNotification: function onceNotification(listener) {
-    return emitter.once(notificationEvent, listener);
-  },
-  removeListener: function removeListener(listener) {
-    return emitter.removeListener(notificationEvent, listener);
-  },
-  removeAllListeners: function removeAllListeners() {
-    return emitter.removeAllListeners(notificationEvent);
-  },
-  init: function init() {
-    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-
-    if (!(0, _utils.isiOS)() || !(0, _utils.isAndroid)()) {
-      return Promise.reject(new _errors.KinveyError('Kinvey currently only supports ' + 'push notifications on iOS and Android platforms.'));
-    }
-
-    options = (0, _assign2.default)({
-      android: {
-        senderID: undefined
-      },
-      ios: {
-        alert: true,
-        badge: true,
-        sound: true
-      },
-      force: false
-    }, options);
-
-    var promise = new Promise(function (resolve, reject) {
-      if ((0, _utils.isiOS)()) {
-        var version = Titanium.Platfrom.version;
-        if (version.split('.')[0] >= 8) {
-          Titanium.App.iOS.addEventListener('usernotificationsettings', function registerForPush() {
-            Titanium.App.iOS.removeEventListener('usernotificationsettings', registerForPush);
-            Titanium.Network.registerForPushNotifications({
-              success: function success(e) {
-                resolve(e.deviceToken);
-              },
-              error: function error(e) {
-                reject(new _errors.KinveyError('An error occurred registering this device ' + 'for push notifications.', e));
-              },
-              callback: function callback(data) {
-                Push.emit(notificationEvent, data);
-              }
-            });
-          });
-
-          var types = [];
-
-          if (options.ios.alert) {
-            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_ALERT);
-          }
-
-          if (options.ios.badge) {
-            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_BADGE);
-          }
-
-          if (options.ios.sound) {
-            types.push(Titanium.App.iOS.USER_NOTIFICATION_TYPE_SOUND);
-          }
-
-          Titanium.App.iOS.registerUserNotificationSettings({
-            types: types
-          });
-        } else {
-          var _types = [];
-
-          if (options.ios.alert) {
-            _types.push(Titanium.Network.NOTIFICATION_TYPE_ALERT);
-          }
-
-          if (options.ios.badge) {
-            _types.push(Titanium.Network.NOTIFICATION_TYPE_BADGE);
-          }
-
-          if (options.ios.sound) {
-            _types.push(Titanium.Network.NOTIFICATION_TYPE_SOUND);
-          }
-
-          Titanium.Network.registerForPushNotifications({
-            types: [Titanium.Network.NOTIFICATION_TYPE_ALERT, Titanium.Network.NOTIFICATION_TYPE_SOUND, Titanium.Network.NOTIFICATION_TYPE_BADGE],
-            success: function success(e) {
-              resolve(e.deviceToken);
-            },
-            error: function error(e) {
-              reject(new _errors.KinveyError('An error occurred registering this device for ' + 'push notifications.', e));
-            },
-            callback: function callback(data) {
-              Push.emit(notificationEvent, data);
-            }
-          });
-        }
-      } else if ((0, _utils.isAndroid)()) {
-        CloudPush.retrieveDeviceToken({
-          success: function success(e) {
-            resolve(e.deviceToken);
-          },
-          error: function error(e) {
-            reject(new _errors.KinveyError('An error occurred registering this device for ' + 'push notifications.', e));
-          }
-        });
-
-        CloudPush.addEventListener('callback', function (data) {
-          Push.emit(notificationEvent, data);
-        });
-      }
-    }).then(function (deviceId) {
-      if (!deviceId) {
-        throw new _errors.KinveyError('Unable to retrieve the device id to register this device for push notifications.');
-      }
-
-      var store = _datastore.DataStore.getInstance(deviceCollectionName, _datastore.DataStoreType.Sync);
-      return store.findById(deviceId).then(function (entity) {
-        if (options.force !== true && entity.registered) {
-          throw new _errors.KinveyError('Device is already registered. To force registration ' + 'please set options.force to true.');
-        }
-      }).then(function () {
-        var user = _user.User.getActiveUser();
-        var client = _client.Client.sharedInstance();
-        var request = new _network.NetworkRequest({
-          method: _enums.HttpMethod.POST,
-          authType: user ? _enums.AuthType.Session : _enums.AuthType.Master,
-          url: _url2.default.format({
-            protocol: client.protocol,
-            host: client.host,
-            pathname: '/' + pushNamespace + '/' + client.appKey + '/register-device'
-          }),
-          properties: options.properties,
-          data: {
-            platform: Titanium.Platfrom.osname,
-            framework: 'titanium',
-            deviceId: deviceId,
-            userId: user ? null : options.userId
-          },
-          timeout: options.timeout,
-          client: client
-        });
-        return request.execute();
-      }).then(function (response) {
-        return store.save({ _id: deviceId, registered: true }).then(function () {
-          return response.data;
-        });
-      });
-    });
-
-    return promise;
-  },
-  unregister: function unregister() {
-    var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-
-    if (!(0, _utils.isiOS)() || !(0, _utils.isAndroid)()) {
-      return Promise.reject(new _errors.KinveyError('Kinvey currently only supports ' + 'push notifications on iOS and Android platforms.'));
-    }
-
-    var store = _datastore.DataStore.getInstance(deviceCollectionName, _datastore.DataStoreType.Sync);
-    var query = new _query.Query();
-    query.equalsTo('registered', true);
-    var promise = store.find(query).then(function (data) {
-      if (data.length === 1) {
-        return data[0]._id;
-      }
-
-      return undefined;
-    }).then(function (deviceId) {
-      if (!deviceId) {
-        throw new _errors.KinveyError('This device has not been registered.');
-      }
-
-      var user = _user.User.getActiveUser();
-      var client = _client.Client.sharedInstance();
-      var request = new _network.NetworkRequest({
-        method: _enums.HttpMethod.POST,
-        authType: user ? _enums.AuthType.Session : _enums.AuthType.Master,
-        url: _url2.default.format({
-          protocol: client.protocol,
-          host: client.host,
-          pathname: '/' + pushNamespace + '/' + client.appKey + '/unregister-device'
-        }),
-        properties: options.properties,
-        data: {
-          platform: Titanium.Platfrom.osname,
-          framework: 'titanium',
-          deviceId: deviceId,
-          userId: user ? null : options.userId
-        },
-        timeout: options.timeout,
-        client: client
-      });
-      return request.execute().then(function (response) {
-        return store.removeById(deviceId).then(function () {
-          return response.data;
-        });
-      });
-    });
-
-    return promise;
-  }
-};
-
-}).call(this,require('_process'))
-
-},{"./utils":278,"_process":249,"events":8,"kinvey-javascript-sdk-core/src/client":21,"kinvey-javascript-sdk-core/src/enums":23,"kinvey-javascript-sdk-core/src/errors":24,"kinvey-javascript-sdk-core/src/query":29,"kinvey-javascript-sdk-core/src/requests/network":43,"kinvey-javascript-sdk-core/src/stores/datastore":48,"kinvey-javascript-sdk-core/src/user":54,"lodash/assign":200,"url":265}],277:[function(require,module,exports){
-(function (process){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.TitaniumDB = undefined;
-
-var _createClass = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
-  };
-}();
-
-var _errors = require('kinvey-javascript-sdk-core/src/errors');
-
-var _map = require('lodash/map');
-
-var _map2 = _interopRequireDefault(_map);
-
-var _isArray = require('lodash/isArray');
-
-var _isArray2 = _interopRequireDefault(_isArray);
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj };
-}
-
-function _classCallCheck(instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-}
-
-var idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
-var dbCache = {};
-
-var TitaniumDB = exports.TitaniumDB = function () {
-  function TitaniumDB() {
-    var name = arguments.length <= 0 || arguments[0] === undefined ? 'kinvey' : arguments[0];
-
-    _classCallCheck(this, TitaniumDB);
-
-    this.name = name;
-  }
-
-  _createClass(TitaniumDB, [{
-    key: 'execute',
-    value: function execute(collection, query, parameters) {
-      var _this = this;
-
-      var db = dbCache[this.name];
-      var escapedCollection = '"' + collection + '"';
-      var isMulti = (0, _isArray2.default)(query);
-      query = isMulti ? query : [[query, parameters]];
-
-      var promise = new Promise(function (resolve, reject) {
-        try {
-          if (!db) {
-            db = Titanium.Database.open(_this.name);
-            dbCache[_this.name] = db;
-          }
-
-          db.execute('BEGIN TRANSACTION');
-
-          db.execute('CREATE TABLE IF NOT EXISTS ' + escapedCollection + ' ' + '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
-
-          var response = (0, _map2.default)(query, function (parts) {
-            var sql = parts[0].replace('#{collection}', escapedCollection);
-            var cursor = db.execute(sql, parts[1]);
-            var response = { rowCount: db.getRowsAffected(), result: null };
-
-            if (cursor) {
-              response.result = [];
-
-              while (cursor.isValidRow()) {
-                var entity = JSON.parse(cursor.fieldByName('value'));
-                response.result.push(entity);
-                cursor.next();
-              }
-
-              cursor.close();
-            }
-
-            return response;
-          });
-
-          db.execute('COMMIT TRANSACTION');
-
-          resolve(isMulti ? response : response.shift());
-        } catch (error) {
-          reject(new _errors.KinveyError(error.message));
-        }
-      });
-
-      return promise;
-    }
-  }, {
-    key: 'find',
-    value: function find(collection) {
-      var sql = 'SELECT value FROM #{collection}';
-      var promise = this.execute(collection, sql, []).then(function (response) {
-        return response.result;
-      }).catch(function (error) {
-        if (error instanceof _errors.NotFoundError) {
-          return [];
-        }
-
-        throw error;
-      });
-      return promise;
-    }
-  }, {
-    key: 'findById',
-    value: function findById(collection, id) {
-      var _this2 = this;
-
-      var sql = 'SELECT value FROM #{collection} WHERE key = ?';
-      var promise = this.execute(collection, sql, [id]).then(function (response) {
-        var entities = response.result;
-
-        if (entities.length === 0) {
-          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this2.name + ' webSQL database.'));
-        }
-
-        return entities[0];
-      });
-      return promise;
-    }
-  }, {
-    key: 'save',
-    value: function save(collection, entities) {
-      var queries = [];
-      entities = (0, _map2.default)(entities, function (entity) {
-        queries.push(['INSERT OR REPLACE INTO #{collection} (key, value) VALUES (?, ?)', [entity[idAttribute], JSON.stringify(entity)]]);
-
-        return entity;
-      });
-
-      var promise = this.execute(collection, queries, null).then(function () {
-        return entities;
-      });
-      return promise;
-    }
-  }, {
-    key: 'removeById',
-    value: function removeById(collection, id) {
-      var _this3 = this;
-
-      var promise = this.execute(collection, [['SELECT value FROM #{collection} WHERE key = ?', [id]], ['DELETE FROM #{collection} WHERE key = ?', [id]]], null).then(function (response) {
-        var entities = response[0].result;
-        var count = response[1].rowCount || entities.length;
-
-        if (count === 0) {
-          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
-        }
-
-        return {
-          count: 1,
-          entities: entities
-        };
-      });
-
-      return promise;
-    }
-  }], [{
-    key: 'isSupported',
-    value: function isSupported() {
-      return typeof Titanium.Database !== 'undefined';
-    }
-  }]);
-
-  return TitaniumDB;
-}();
-
-}).call(this,require('_process'))
-
-},{"_process":249,"kinvey-javascript-sdk-core/src/errors":24,"lodash/isArray":211,"lodash/map":231}],278:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.isiOS = isiOS;
-exports.isAndroid = isAndroid;
-exports.isMobileWeb = isMobileWeb;
-function isiOS() {
-  return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
-}
-
-function isAndroid() {
-  return Titanium.Platform.osname === 'android';
-}
-
-function isMobileWeb() {
-  return Titanium.Platform.name === 'mobileweb';
-}
-
-},{}]},{},[274])(274)
-});
-//# sourceMappingURL=kinvey.js.map

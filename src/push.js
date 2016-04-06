@@ -1,11 +1,11 @@
-import { KinveyError } from 'kinvey-javascript-sdk-core/src/errors';
+import { KinveyError } from 'kinvey-javascript-sdk-core/build/errors';
 import { EventEmitter } from 'events';
-import { NetworkRequest } from 'kinvey-javascript-sdk-core/src/requests/network';
-import { DataStore, DataStoreType } from 'kinvey-javascript-sdk-core/src/stores/datastore';
-import { HttpMethod, AuthType } from 'kinvey-javascript-sdk-core/src/enums';
-import { User } from 'kinvey-javascript-sdk-core/src/user';
-import { Client } from 'kinvey-javascript-sdk-core/src/client';
-import { Query } from 'kinvey-javascript-sdk-core/src/query';
+import { NetworkRequest } from 'kinvey-javascript-sdk-core/build/requests/network';
+import { DataStore, DataStoreType } from 'kinvey-javascript-sdk-core/build/stores/datastore';
+import { HttpMethod, AuthType } from 'kinvey-javascript-sdk-core/build/enums';
+import { User } from 'kinvey-javascript-sdk-core/build/user';
+import { Client } from 'kinvey-javascript-sdk-core/build/client';
+import { Query } from 'kinvey-javascript-sdk-core/build/query';
 import { isiOS, isAndroid } from './utils';
 import assign from 'lodash/assign';
 import url from 'url';

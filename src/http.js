@@ -1,4 +1,4 @@
-import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/src/rack/middleware';
+import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware';
 import { isMobileWeb } from './utils';
 import parseHeaders from 'parse-headers';
 import isString from 'lodash/isString';
