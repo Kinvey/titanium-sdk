@@ -34805,7 +34805,7 @@ function hasOwnProperty(obj, prop) {
 },{"./support/isBuffer":293,"_process":275,"inherits":24}],295:[function(require,module,exports){
 module.exports={
   "name": "kinvey-titanium-sdk",
-  "version": "3.0.0-beta.13",
+  "version": "3.0.0-beta.14",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
