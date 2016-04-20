@@ -1,13 +1,13 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.0.0-beta.14",
+  "version": "3.0.0-beta.17",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "https://www.kinvey.com",
   "license": "Apache-2.0",
   "authors": [
     "Kinvey, Inc."
   ],
-  "main": "./dist/kinvey.min.js",
+  "main": "./dist/kinvey-titanium-sdk.min.js",
   "keywords": [
     "Kinvey",
     "JavaScript",
