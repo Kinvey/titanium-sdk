@@ -298,4 +298,4 @@ export class Push extends EventEmitter {
 
     return promise;
   }
-};
+}
