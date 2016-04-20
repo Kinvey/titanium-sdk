@@ -1,11 +1,12 @@
+import { EventEmitter } from 'events';
 import { isiOS, isAndroid } from './utils';
 import bind from 'lodash/bind';
 
 /**
  * @private
  */
-export class PopupAdapter {
-  open() {
+export class Popup extends EventEmitter {
+  open(url = '/') {
     this.eventListeners = {
       loadHandler: bind(this.loadHandler, this),
       clickHandler: bind(this.clickHandler, this),
@@ -16,7 +17,7 @@ export class PopupAdapter {
       this.tiWebView = Titanium.UI.createWebView({
         width: '100%',
         height: '100%',
-        url: this.url
+        url: url
       });
 
       this.popup = Titanium.UI.createWindow({
