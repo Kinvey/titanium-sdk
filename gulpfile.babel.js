@@ -61,7 +61,7 @@ gulp.task('bundle', ['build'], () => {
         './index.js'
       ],
       output: {
-        filename: 'kinvey-phonegap-sdk.js'
+        filename: 'kinvey-titanium-sdk.js'
       },
       module: {
         loaders: [
@@ -71,7 +71,7 @@ gulp.task('bundle', ['build'], () => {
     }, webpack))
     .pipe(banner(header, { pkg: pkg }))
     .pipe(gulp.dest(`${__dirname}/dist`))
-    .pipe(rename('kinvey-phonegap-sdk.min.js'))
+    .pipe(rename('kinvey-titanium-sdk.min.js'))
     .pipe(buffer())
     .pipe(uglify())
     .pipe(banner(header, { pkg: pkg }))
@@ -110,12 +110,12 @@ gulp.task('uploadS3', ['build'], () => {
   });
 
   const stream = gulp.src([
-    'dist/kinvey-phonegap-sdk.js',
-    'dist/kinvey-phonegap-sdk.min.js'
+    'dist/kinvey-titanium-sdk.js',
+    'dist/kinvey-titanium-sdk.min.js'
   ])
     .pipe(plumber())
-    .pipe(gulpif('kinvey-phonegap-sdk.js', rename({ basename: `kinvey-phonegap-sdk-${pkg.version}` })))
-    .pipe(gulpif('kinvey-phonegap-sdk.min.js', rename({ basename: `kinvey-phonegap-sdk-${pkg.version}.min` })))
+    .pipe(gulpif('kinvey-titanium-sdk.js', rename({ basename: `kinvey-titanium-sdk-${pkg.version}` })))
+    .pipe(gulpif('kinvey-titanium-sdk.min.js', rename({ basename: `kinvey-titanium-sdk-${pkg.version}.min` })))
     .pipe(s3({
       Bucket: 'kinvey-downloads/js',
       uploadNewFilesOnly: true

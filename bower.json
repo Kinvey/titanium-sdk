@@ -5,7 +5,7 @@
   "homepage": "https://www.kinvey.com",
   "license": "Apache-2.0",
   "authors": [
-    "Kinvey, Inc."
+    "Kinvey"
   ],
   "main": "./dist/kinvey-titanium-sdk.min.js",
   "keywords": [
