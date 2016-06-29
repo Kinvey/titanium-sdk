@@ -4,7 +4,6 @@ import util from 'gulp-util';
 import plumber from 'gulp-plumber';
 import uglify from 'gulp-uglify';
 import rename from 'gulp-rename';
-import gulpif from 'gulp-if';
 import babel from 'gulp-babel';
 import buffer from 'gulp-buffer';
 import del from 'del';
@@ -14,7 +13,7 @@ import s3Upload from 'gulp-s3-upload';
 import banner from 'gulp-banner';
 import pkg from './package.json';
 import bump from 'gulp-bump';
-import file from 'gulp-file';
+import tag from 'gulp-tag-version';
 import { argv as args } from 'yargs';
 
 function errorHandler(err) {
@@ -30,12 +29,12 @@ gulp.task('lint', () => {
   return stream;
 });
 
-gulp.task('clean', (done) => del(['es5', 'dist'], done));
+gulp.task('clean', (done) => del(['dist'], done));
 
 gulp.task('build', ['clean', 'lint'], () => {
   const stream = gulp.src('src/**/*.js')
     .pipe(babel())
-    .pipe(gulp.dest('./es5'));
+    .pipe(gulp.dest('./dist'));
   return stream;
 });
 
@@ -51,15 +50,10 @@ gulp.task('bundle', ['build'], () => {
     + ' * Released under the <%= pkg.license %> license.\n'
     + ' */\n';
 
-  const stream = gulp.src('./es5/index.js')
+  const stream = gulp.src('./dist/index.js')
     .pipe(gulpWebpack({
-      context: `${__dirname}/es5`,
-      entry: [
-        'babel-regenerator-runtime/runtime.js',
-        './popup',
-        './device',
-        './index.js'
-      ],
+      context: `${__dirname}/dist`,
+      entry: ['./index.js'],
       output: {
         filename: 'kinvey-titanium-sdk.js'
       },
@@ -71,21 +65,25 @@ gulp.task('bundle', ['build'], () => {
     }, webpack))
     .pipe(banner(header, { pkg: pkg }))
     .pipe(gulp.dest(`${__dirname}/dist`))
+    .pipe(rename(`kinvey-titanium-sdk-${pkg.version}.js`))
+    .pipe(gulp.dest(`${__dirname}/dist`))
     .pipe(rename('kinvey-titanium-sdk.min.js'))
     .pipe(buffer())
     .pipe(uglify())
     .pipe(banner(header, { pkg: pkg }))
     .pipe(gulp.dest(`${__dirname}/dist`))
+    .pipe(rename(`kinvey-titanium-sdk-${pkg.version}.min.js`))
+    .pipe(gulp.dest(`${__dirname}/dist`))
     .on('error', errorHandler);
   return stream;
 });
 
-gulp.task('bumpVersion', () => {
+gulp.task('bump', () => {
   if (!args.type && !args.version) {
     args.type = 'patch';
   }
 
-  const stream = gulp.src('./package.json')
+  const stream = gulp.src(['./package.json', './bower.json'])
     .pipe(bump({
       preid: 'beta',
       type: args.type,
@@ -96,29 +94,26 @@ gulp.task('bumpVersion', () => {
   return stream;
 });
 
-gulp.task('bump', ['bumpVersion'], () => {
-  const stream = file('bump.txt', '', { src: true })
-    .pipe(gulp.dest(`${__dirname}/tmp`))
+gulp.task('tag', () => {
+  const stream = gulp.src('./package.json')
+    .pipe(tag())
     .on('error', errorHandler);
   return stream;
 });
 
-gulp.task('uploadS3', ['build'], () => {
+gulp.task('upload', ['build'], () => {
   const s3 = s3Upload({
-    accessKeyId: process.env.S3ACCESSKEY,
-    secretAccessKey: process.env.S3ACCESSSECRET
+    accessKeyId: process.env.S3_ACCESSKEYID,
+    secretAccessKey: process.env.S3_SECRETACCESSKEY
   });
 
   const stream = gulp.src([
-    'dist/kinvey-titanium-sdk.js',
-    'dist/kinvey-titanium-sdk.min.js'
+    `dist/kinvey-html5-sdk-${pkg.version}.js`,
+    `dist/kinvey-html5-sdk-${pkg.version}.min.js`
   ])
     .pipe(plumber())
-    .pipe(gulpif('kinvey-titanium-sdk.js', rename({ basename: `kinvey-titanium-sdk-${pkg.version}` })))
-    .pipe(gulpif('kinvey-titanium-sdk.min.js', rename({ basename: `kinvey-titanium-sdk-${pkg.version}.min` })))
     .pipe(s3({
-      Bucket: 'kinvey-downloads/js',
-      uploadNewFilesOnly: true
+      Bucket: 'kinvey-downloads/js'
     }, (error, data) => {
       if (error) {
         return errorHandler(error);

@@ -11,7 +11,7 @@
   "contributors": [
     "Thomas Conner <thomas@kinvey.com>"
   ],
-  "main": "./es5/index.js",
+  "main": "./dist/index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:Kinvey/kinvey-titanium-sdk"
@@ -23,10 +23,11 @@
     "postpublish": "PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]') && git tag $PACKAGE_VERSION && git push --tags"
   },
   "dependencies": {
-    "babel-regenerator-runtime": "^6.5.0",
-    "kinvey-javascript-sdk-core": "3.0.0-beta.23",
+    "es6-promise": "^3.2.1",
+    "kinvey-javascript-sdk-core": "*",
     "lodash": "^4.8.2",
-    "parse-headers": "^2.0.1"
+    "parse-headers": "^2.0.1",
+    "regenerator-runtime": "^0.9.5"
   },
   "devDependencies": {
     "babel-core": "^6.9.0",
