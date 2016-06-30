@@ -55,7 +55,9 @@ gulp.task('bundle', ['build'], () => {
       context: `${__dirname}/dist`,
       entry: ['./index.js'],
       output: {
-        filename: 'kinvey-titanium-sdk.js'
+        filename: 'kinvey-titanium-sdk.js',
+        libraryTarget: 'var',
+        library: 'Kinvey'
       },
       module: {
         loaders: [
@@ -108,8 +110,8 @@ gulp.task('upload', ['build'], () => {
   });
 
   const stream = gulp.src([
-    `dist/kinvey-html5-sdk-${pkg.version}.js`,
-    `dist/kinvey-html5-sdk-${pkg.version}.min.js`
+    `dist/kinvey-titanium-sdk-${pkg.version}.js`,
+    `dist/kinvey-titanium-sdk-${pkg.version}.min.js`
   ])
     .pipe(plumber())
     .pipe(s3({

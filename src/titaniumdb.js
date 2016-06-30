@@ -1,4 +1,5 @@
-import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core/build/errors';
+import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core/dist/errors';
+import { Promise } from 'es6-promise';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';

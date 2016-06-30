@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { isiOS, isAndroid } from './utils';
+import { Device } from './device';
 import bind from 'lodash/bind';
 
 /**
@@ -28,7 +28,7 @@ export class Popup extends EventEmitter {
       });
       this.popup.add(this.tiWebView);
 
-      if (isiOS()) {
+      if (Device.isiOS()) {
         this.tiWin = Titanium.UI.createWindow({
           backgroundColor: 'white',
           barColor: '#e3e3e3',
@@ -48,7 +48,7 @@ export class Popup extends EventEmitter {
           window: this.tiWin,
           modal: true
         });
-      } else if (isAndroid()) {
+      } else if (Device.isAndroid()) {
         this.popup.addEventListener('androidback', this.eventListeners.closeHandler);
       }
 
@@ -70,7 +70,7 @@ export class Popup extends EventEmitter {
   }
 
   loadHandler(event) {
-    this.emit('loaded', event.url);
+    this.emit('loadstart', event.url);
   }
 
   clickHandler() {
@@ -82,9 +82,9 @@ export class Popup extends EventEmitter {
     this.tiWebView.removeEventListener('error', this.eventListeners.loadHandler);
     this.popup.removeEventListener('close', this.eventListeners.closeHandler);
 
-    if (isiOS()) {
+    if (Device.isiOS()) {
       this.tiCloseButton.removeEventListener('click', this.eventListeners.clickHandler);
-    } else if (isAndroid()) {
+    } else if (Device.isAndroid()) {
       this.popup.close();
       this.popup.removeEventListener('androidback', this.eventListeners.closeHandler);
     }

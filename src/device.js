@@ -1,17 +1,25 @@
-import packageJSON from 'json-loader!../package.json';
+import packageJSON from '../package.json';
 
-/**
- * @private
- */
-export class DeviceAdapter {
-  toJSON() {
+export class Device {
+  static isiOS() {
+    return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
+  }
+
+  static isAndroid() {
+    return Titanium.Platform.osname === 'android';
+  }
+
+  static isMobileWeb() {
+    return Titanium.Platform.name === 'mobileweb';
+  }
+
+  static toJSON() {
     return {
       device: {
         manufacturer: Titanium.Platform.manufacturer,
         model: Titanium.Platfrom.model
       },
-      environment: 'titanium',
-      library: {
+      platform: {
         name: 'titanium',
         version: Titanium.getVersion()
       },
@@ -19,7 +27,7 @@ export class DeviceAdapter {
         name: Titanium.Platfrom.osname,
         version: Titanium.Platfrom.version
       },
-      sdk: {
+      kinveySDK: {
         name: packageJSON.name,
         version: packageJSON.version
       }
