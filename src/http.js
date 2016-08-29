@@ -1,8 +1,8 @@
 import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/dist/rack/middleware';
 import { Promise } from 'es6-promise';
 import { Device } from './device';
+import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import parseHeaders from 'parse-headers';
-import isString from 'lodash/isString';
 import isFunction from 'lodash/isFunction';
 
 /**
@@ -37,40 +37,36 @@ export class HttpMiddleware extends KinveyMiddleware {
         }
       }
 
-      // Set timeout
-      // xhr.timeout = request.timeout || 0;
-
-      // Set success and failure callback
-      xhr.onload = xhr.onerror = (e) => {
-        const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
-
-        if (isString(e.error) && e.error.toLowerCase().indexOf('timed out') !== -1) {
-          e.type = 'timeout';
-        }
-
-        if ((status >= 200 && status < 300)
-          || status === 302
-          || status === 304) {
-          request.response = {
-            statusCode: status,
-            headers: parseHeaders(xhr.allResponseHeaders),
-            data: xhr.responseText
-          };
-
-          return resolve(request);
-        }
-
-        return reject(e.error);
-      };
-
-      // Open the request
-      xhr.open(method, url);
-
       // Set request headers
       const names = Object.keys(headers.toJSON());
       for (const name of names) {
         xhr.setRequestHeader(name, headers.get(name));
       }
+
+      // Set timeout
+      xhr.timeout = request.timeout || 0;
+
+      // Set success and failure callback
+      xhr.onload = xhr.onerror = (e) => {
+        const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
+
+        if (e.error) {
+          return reject(e.error);
+        }
+
+        // Set the response for the request
+        request.response = {
+          statusCode: status,
+          headers: parseHeaders(xhr.allResponseHeaders),
+          data: xhr.responseText
+        };
+
+        // Resolve
+        return resolve(request);
+      };
+
+      // Open the request
+      xhr.open(method, url);
 
       // Send request
       xhr.send(body);

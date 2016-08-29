@@ -45,9 +45,7 @@ export class DB extends CoreDB {
 }
 
 export class CacheMiddleware extends CoreCacheMiddelware {
-  openDatabase(name, adapters = [
-    DBAdapter.TitaniumDB
-  ]) {
+  openDatabase(name) {
     if (!name) {
       throw new KinveyError('A name is required to open a database.');
     }
@@ -55,7 +53,7 @@ export class CacheMiddleware extends CoreCacheMiddelware {
     let db = dbCache[name];
 
     if (!db) {
-      db = new DB(name, adapters);
+      db = new DB(name);
     }
 
     return db;

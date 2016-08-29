@@ -1,18 +1,37 @@
 import packageJSON from '../package.json';
 
-export class Device {
-  static isiOS() {
+export function isTitanium() {
+  return typeof Titanium !== 'undefined';
+}
+
+export function isiOS() {
+  if (isTitanium()) {
     return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
   }
 
-  static isAndroid() {
+  return /iPad|iPhone|iPod/.test(global.navigator.userAgent) && !window.MSStream;
+}
+
+export function isAndroid() {
+  if (isTitanium()) {
     return Titanium.Platform.osname === 'android';
   }
 
-  static isMobileWeb() {
+  return /Android/.test(global.navigator.userAgent);
+}
+
+export function isBrowser() {
+  if (isTitanium()) {
     return Titanium.Platform.name === 'mobileweb';
   }
 
+  return !isiOS() && !isAndroid();
+}
+
+/**
+ * @private
+ */
+export class Device {
   static toJSON() {
     return {
       device: {

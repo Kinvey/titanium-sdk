@@ -6,6 +6,7 @@ import { User } from 'kinvey-javascript-sdk-core/dist/user';
 import { Client } from 'kinvey-javascript-sdk-core/dist/client';
 import { Device } from './device';
 import { Promise } from 'es6-promise';
+import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import url from 'url';
 import bind from 'lodash/bind';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
@@ -33,10 +34,10 @@ export class Push extends EventEmitter {
           const version = Titanium.Platfrom.version;
           if (version.split('.')[0] >= 8) {
             Titanium.App.iOS.addEventListener('usernotificationsettings', function registerForPush() {
-              Titanium.App.iOS.removeEventListener('usernotificationsettings', registerForPush);
               Titanium.Network.registerForPushNotifications({
                 callback: notificationEventListener
               });
+              Titanium.App.iOS.removeEventListener('usernotificationsettings', registerForPush);
             });
 
             const types = [];

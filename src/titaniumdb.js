@@ -1,7 +1,8 @@
 import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core/dist/errors';
-import { Promise } from 'es6-promise';
+import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
+import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
 const dbCache = {};
 
@@ -13,57 +14,53 @@ export class TitaniumDB {
     this.name = name;
   }
 
-  execute(collection, query, parameters) {
+  async execute(collection, query, parameters) {
     let db = dbCache[this.name];
     const escapedCollection = `"${collection}"`;
     const isMulti = isArray(query);
     query = isMulti ? query : [[query, parameters]];
 
-    const promise = new Promise((resolve, reject) => {
-      try {
-        if (!db) {
-          db = Titanium.Database.open(this.name);
-          dbCache[this.name] = db;
-        }
+    try {
+      if (!db) {
+        db = Titanium.Database.open(this.name);
+        dbCache[this.name] = db;
+      }
 
-        // Start a transaction
-        db.execute('BEGIN TRANSACTION');
+      // Start a transaction
+      db.execute('BEGIN TRANSACTION');
 
-        // Create the table if it does not exist yet
-        db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
-          '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
+      // Create the table if it does not exist yet
+      db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
+        '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
 
-        // Execute queries
-        const response = map(query, parts => {
-          const sql = parts[0].replace('#{collection}', escapedCollection);
-          const cursor = db.execute(sql, parts[1]);
-          const response = { rowCount: db.getRowsAffected(), result: null };
+      // Execute queries
+      const response = map(query, parts => {
+        const sql = parts[0].replace('#{collection}', escapedCollection);
+        const cursor = db.execute(sql, parts[1]);
+        const response = { rowCount: db.getRowsAffected(), result: null };
 
-          if (cursor) {
-            response.result = [];
+        if (cursor) {
+          response.result = [];
 
-            while (cursor.isValidRow()) {
-              const entity = JSON.parse(cursor.fieldByName('value'));
-              response.result.push(entity);
-              cursor.next();
-            }
-
-            cursor.close();
+          while (cursor.isValidRow()) {
+            const entity = JSON.parse(cursor.fieldByName('value'));
+            response.result.push(entity);
+            cursor.next();
           }
 
-          return response;
-        });
+          cursor.close();
+        }
 
-        // Commit the transaction
-        db.execute('COMMIT TRANSACTION');
+        return response;
+      });
 
-        resolve(isMulti ? response : response.shift());
-      } catch (error) {
-        reject(new KinveyError(error.message));
-      }
-    });
+      // Commit the transaction
+      db.execute('COMMIT TRANSACTION');
 
-    return promise;
+      return isMulti ? response : response.shift();
+    } catch (error) {
+      throw new KinveyError(error.message);
+    }
   }
 
   find(collection) {
@@ -128,6 +125,25 @@ export class TitaniumDB {
     });
 
     return promise;
+  }
+
+  async clear() {
+    let db = dbCache[this.name];
+
+    if (!db) {
+      db = Titanium.Database.open(this.name);
+    }
+
+    if (isFunction(db.remove)) { // Android
+      db.remove();
+      return null;
+    }
+
+    if (db.file && db.file.deleteFile()) { // iOS
+      return null;
+    }
+
+    throw new Error('The mechanism to delete the database is not implemented for this platform.');
   }
 
   static isSupported() {
