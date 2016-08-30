@@ -1,30 +1,23 @@
-import { Kinvey } from 'kinvey-javascript-sdk-core';
-import { CacheRack, NetworkRack } from 'kinvey-javascript-sdk-core/build/rack/rack';
-import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware/cache';
+import { Kinvey } from './kinvey';
+import { KinveyRackManager } from 'kinvey-javascript-sdk-core/dist/rack/rack';
+import { CacheMiddleware as CoreCacheMiddleware } from 'kinvey-javascript-sdk-core/dist/rack/cache';
 import { CacheMiddleware } from './cache';
-import { SerializeMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware/serialize';
+import { HttpMiddleware as CoreHttpMiddleware } from 'kinvey-javascript-sdk-core/dist/rack/http';
 import { HttpMiddleware } from './http';
-import { Push } from './push';
+import { Device } from './device';
+import { Popup } from './popup';
 
-// Swap Cache middleware
-const cacheRack = CacheRack.sharedInstance();
+// Swap Cache Middelware
+const cacheRack = KinveyRackManager.cacheRack;
 cacheRack.swap(CoreCacheMiddleware, new CacheMiddleware());
 
-// Add Http middleware
-const networkRack = NetworkRack.sharedInstance();
-networkRack.useAfter(SerializeMiddleware, new HttpMiddleware());
+// Swap Http middleware
+const networkRack = KinveyRackManager.networkRack;
+networkRack.swap(CoreHttpMiddleware, new HttpMiddleware());
 
-const _init = Kinvey.init;
-Kinvey.init = (options) => {
-  // Initialize Kinvey
-  const client = _init(options);
-
-  // Add Push module to Kinvey
-  Kinvey.Push = new Push();
-
-  // Return the client
-  return client;
-};
+// Expose some globals
+global.KinveyDevice = Device;
+global.KinveyPopup = Popup;
 
 // Export
 module.exports = Kinvey;

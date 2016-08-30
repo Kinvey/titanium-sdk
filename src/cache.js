@@ -1,60 +1,61 @@
-import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware';
-import { HttpMethod, StatusCode } from 'kinvey-javascript-sdk-core/build/enums';
-import { DB, DBAdapter } from './db';
+import {
+  CacheMiddleware as CoreCacheMiddelware,
+  DB as CoreDB
+} from 'kinvey-javascript-sdk-core/dist/rack/cache';
+import { KinveyError } from 'kinvey-javascript-sdk-core/dist/errors';
+import { Log } from 'kinvey-javascript-sdk-core/dist/log';
+import { TitaniumDB } from './titaniumdb';
+import forEach from 'lodash/forEach';
+import isArray from 'lodash/isArray';
+const dbCache = {};
 
 /**
- * @private
+ * Enum for DB Adapters.
  */
-export class CacheMiddleware extends KinveyMiddleware {
-  constructor(name = 'Kinvey Titanium Cache Middleware', adapters = [DBAdapter.TitaniumDB, DBAdapter.Memory]) {
-    super(name, adapters);
-  }
+const DBAdapter = {
+  TitaniumDB: 'TitaniumDB'
+};
+Object.freeze(DBAdapter);
+export { DBAdapter };
 
-  handle(request) {
-    return super.handle(request).then(({ appKey, collection, id }) => {
-      const method = request.method;
-      const query = request.query;
-      const data = request.data;
-      const db = new DB(appKey, this.adapters);
-      let promise;
+export class DB extends CoreDB {
+  constructor(name = 'kinvey', adapters = [DBAdapter.TitaniumDB]) {
+    super(name);
 
-      if (method === HttpMethod.GET) {
-        if (id) {
-          if (id === '_count') {
-            promise = db.count(collection, query);
-          } else if (id === '_group') {
-            promise = db.group(collection, data);
-          } else {
-            promise = db.findById(collection, id);
+    if (!isArray(adapters)) {
+      adapters = [adapters];
+    }
+
+    forEach(adapters, adapter => {
+      switch (adapter) {
+        case DBAdapter.TitaniumDB:
+          if (TitaniumDB.isSupported()) {
+            this.adapter = new TitaniumDB(name);
+            return false;
           }
-        } else {
-          promise = db.find(collection, query);
-        }
-      } else if (method === HttpMethod.POST || method === HttpMethod.PUT) {
-        promise = db.save(collection, data);
-      } else if (method === HttpMethod.DELETE) {
-        if (id) {
-          promise = db.removeById(collection, id);
-        } else {
-          promise = db.remove(collection, query);
-        }
+
+          break;
+        default:
+          Log.warn(`The ${adapter} adapter is is not recognized.`);
       }
 
-      return promise.then(result => {
-        let statusCode = StatusCode.Ok;
-
-        if (method === HttpMethod.POST) {
-          statusCode = StatusCode.Created;
-        }
-
-        request.response = {
-          statusCode: statusCode,
-          headers: {},
-          data: result
-        };
-
-        return request;
-      });
+      return true;
     });
+  }
+}
+
+export class CacheMiddleware extends CoreCacheMiddelware {
+  openDatabase(name) {
+    if (!name) {
+      throw new KinveyError('A name is required to open a database.');
+    }
+
+    let db = dbCache[name];
+
+    if (!db) {
+      db = new DB(name);
+    }
+
+    return db;
   }
 }

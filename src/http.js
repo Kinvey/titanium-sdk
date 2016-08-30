@@ -1,7 +1,8 @@
-import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/build/rack/middleware';
-import { isMobileWeb } from './utils';
+import { KinveyMiddleware } from 'kinvey-javascript-sdk-core/dist/rack/middleware';
+import { Promise } from 'es6-promise';
+import { Device } from './device';
+import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import parseHeaders from 'parse-headers';
-import isString from 'lodash/isString';
 import isFunction from 'lodash/isFunction';
 
 /**
@@ -12,66 +13,63 @@ export class HttpMiddleware extends KinveyMiddleware {
     super(name);
   }
 
-  handle(request) {
-    return super.handle(request).then(() => {
-      const promise = new Promise((resolve, reject) => {
-        let xhr;
+  async handle(request) {
+    // Call super
+    await super.handle(request);
 
-        if (isMobileWeb()) {
-          xhr = new XMLHttpRequest();
+    const { url, method, headers, body } = request;
+    let xhr;
 
-          xhr.ontimeout = function() {
-            reject(new Error('timeout'));
-          };
-        } else {
-          xhr = Titanium.Network.createHTTPClient();
-          xhr.autoRedirect = request.followRedirect || true;
+    return new Promise((resolve, reject) => {
+      if (Device.isMobileWeb()) {
+        xhr = new XMLHttpRequest();
 
-          // Set the TLS version (iOS only)
-          if (isFunction(xhr.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
-            xhr.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
-          }
+        xhr.ontimeout = function() {
+          reject(new Error('timeout'));
+        };
+      } else {
+        xhr = Titanium.Network.createHTTPClient();
+        xhr.autoRedirect = request.followRedirect || true;
+
+        // Set the TLS version (iOS only)
+        if (isFunction(xhr.setTlsVersion) && Titanium.Network.TLS_VERSION_1_2) {
+          xhr.setTlsVersion(Titanium.Network.TLS_VERSION_1_2);
+        }
+      }
+
+      // Set request headers
+      const names = Object.keys(headers.toJSON());
+      for (const name of names) {
+        xhr.setRequestHeader(name, headers.get(name));
+      }
+
+      // Set timeout
+      xhr.timeout = request.timeout || 0;
+
+      // Set success and failure callback
+      xhr.onload = xhr.onerror = (e) => {
+        const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
+
+        if (e.error) {
+          return reject(e.error);
         }
 
-        // Set timeout
-        // xhr.timeout = request.timeout || 0;
-
-        // Set success and failure callback
-        xhr.onload = xhr.onerror = (e) => {
-          const status = e.type === 'timeout' || e.type === 'cancelled' ? 0 : xhr.status;
-
-          if (isString(e.error) && e.error.toLowerCase().indexOf('timed out') !== -1) {
-            e.type = 'timeout';
-          }
-
-          if ((status >= 200 && status < 300) || status === 304) {
-            request.response = {
-              statusCode: status,
-              headers: parseHeaders(xhr.allResponseHeaders),
-              data: xhr.responseText
-            };
-
-            return resolve(request);
-          }
-
-          return reject(e.error);
+        // Set the response for the request
+        request.response = {
+          statusCode: status,
+          headers: parseHeaders(xhr.allResponseHeaders),
+          data: xhr.responseText
         };
 
-        // Open the request
-        xhr.open(request.method, request.url);
+        // Resolve
+        return resolve(request);
+      };
 
-        // Set request headers
-        for (const name in request.headers) {
-          if (request.headers.hasOwnProperty(name)) {
-            xhr.setRequestHeader(name, request.headers[name]);
-          }
-        }
+      // Open the request
+      xhr.open(method, url);
 
-        // Send request
-        xhr.send(request.data);
-      });
-
-      return promise;
+      // Send request
+      xhr.send(body);
     });
   }
 }
