@@ -1,8 +1,7 @@
-import { KinveyError, Log } from 'kinvey-javascript-sdk-core';
+import { Log } from 'kinvey-javascript-sdk-core';
 import { Memory, DB as Html5DB } from 'kinvey-html5-sdk';
 import { TitaniumDB } from './titaniumdb';
 import forEach from 'lodash/forEach';
-import isString from 'lodash/isString';
 import isArray from 'lodash/isArray';
 
 /**
@@ -23,13 +22,7 @@ export class DB extends Html5DB {
     StorageAdapter.TitaniumDB,
     StorageAdapter.Memory
   ]) {
-    if (!name) {
-      throw new KinveyError('Unable to create a DB instance without a name.');
-    }
-
-    if (!isString(name)) {
-      throw new KinveyError('The name is not a string. A name must be a string to create a DB instance.');
-    }
+    super(name, adapters);
 
     if (!isArray(adapters)) {
       adapters = [adapters];

@@ -11,6 +11,14 @@ var _get = function get(object, property, receiver) { if (object === null) objec
 
 var _kinveyJavascriptSdkCore = require('kinvey-javascript-sdk-core');
 
+var _kinveyHtml5Sdk = require('kinvey-html5-sdk');
+
+var _rack = require('./rack');
+
+var _device = require('./device');
+
+var _popup = require('./popup');
+
 var _push = require('./push');
 
 var _es6Promise = require('es6-promise');
@@ -21,9 +29,9 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-// Extend the CoreKinvey class
-var Kinvey = exports.Kinvey = function (_CoreKinvey) {
-  _inherits(Kinvey, _CoreKinvey);
+// Extend the Html5Kinvey class
+var Kinvey = exports.Kinvey = function (_Html5Kinvey) {
+  _inherits(Kinvey, _Html5Kinvey);
 
   function Kinvey() {
     _classCallCheck(this, Kinvey);
@@ -43,21 +51,22 @@ var Kinvey = exports.Kinvey = function (_CoreKinvey) {
       // Return the client
       return client;
     }
-  }, {
-    key: 'Promise',
-
-    /**
-     * Returns the Promise class.
-     *
-     * @return {Promise} The Promise class.
-     *
-     * @example
-     * var Promise = Kinvey.Promise;
-     */
-    get: function get() {
-      return _es6Promise.Promise;
-    }
   }]);
 
   return Kinvey;
-}(_kinveyJavascriptSdkCore.Kinvey);
+}(_kinveyHtml5Sdk.Kinvey);
+
+// Set CacheRequest rack
+
+
+_kinveyJavascriptSdkCore.CacheRequest.rack = new _rack.CacheRack();
+
+// Set NetworkRequest rack
+_kinveyJavascriptSdkCore.NetworkRequest.rack = new _rack.NetworkRack();
+
+// Add modules
+Kinvey.Device = _device.Device;
+Kinvey.Popup = _popup.Popup;
+Kinvey.Promise = _es6Promise.Promise;
+Kinvey.CacheMiddleware = _rack.CacheMiddleware;
+Kinvey.HttpMiddleware = _rack.HttpMiddleware;
