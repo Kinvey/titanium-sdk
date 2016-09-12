@@ -1,6 +1,6 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.0.3",
+  "version": "3.1.0",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
@@ -11,22 +11,35 @@
   "contributors": [
     "Thomas Conner <thomas@kinvey.com>"
   ],
-  "main": "./dist/index.js",
+  "main": "./dist/export.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:Kinvey/kinvey-titanium-sdk"
   },
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test",
-    "test:watch": "./node_modules/mocha/bin/mocha -w --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test",
-    "test:jenkins": "istanbul cover _mocha -- --reporter tap --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test > test.tap && istanbul report clover"
+    "build": "gulp build",
+    "bundle": "gulp bundle",
+    "clean": "gulp clean",
+    "lint": "gulp lint",
+    "test": "npm run test:unit",
+    "test:unit": "mocha --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
+    "test:unit:watch": "mocha -w --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
+    "test:jenkins": "npm run test:unit:jenkins",
+    "test:unit:jenkins": "istanbul cover _mocha -- --reporter tap --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit > test.tap && istanbul report clover"
   },
   "dependencies": {
     "es6-promise": "^3.2.1",
-    "kinvey-javascript-sdk-core": "3.0.3",
+    "kinvey-javascript-sdk-core": "^3.0.0",
+    "kinvey-html5-sdk": "^3.0.0",
+    "kinvey-javascript-rack": "^1.0.0",
     "lodash": "^4.8.2",
     "parse-headers": "^2.0.1",
     "regenerator-runtime": "^0.9.5"
+  },
+  "peerDependencies": {
+    "kinvey-javascript-sdk-core": "^3.0.0",
+    "kinvey-html5-sdk": "^3.0.0",
+    "kinvey-javascript-rack": "^1.0.0"
   },
   "devDependencies": {
     "babel-core": "^6.9.0",

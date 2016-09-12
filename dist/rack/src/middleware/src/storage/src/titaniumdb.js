@@ -8,7 +8,7 @@ exports.TitaniumDB = undefined;
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); // eslint-disable-line no-unused-vars
 
 
-var _errors = require('kinvey-javascript-sdk-core/dist/errors');
+var _kinveyJavascriptSdkCore = require('kinvey-javascript-sdk-core');
 
 var _regeneratorRuntime = require('regenerator-runtime');
 
@@ -33,7 +33,6 @@ function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, a
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
-var dbCache = {};
 
 /**
  * @private
@@ -52,35 +51,35 @@ var TitaniumDB = exports.TitaniumDB = function () {
     key: 'execute',
     value: function () {
       var _ref = _asyncToGenerator(_regeneratorRuntime2.default.mark(function _callee(collection, query, parameters) {
-        var db, escapedCollection, isMulti, response;
+        var _this = this;
+
+        var escapedCollection, isMulti, response;
         return _regeneratorRuntime2.default.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
-                db = dbCache[this.name];
                 escapedCollection = '"' + collection + '"';
                 isMulti = (0, _isArray2.default)(query);
 
                 query = isMulti ? query : [[query, parameters]];
 
-                _context.prev = 4;
+                _context.prev = 3;
 
-                if (!db) {
-                  db = Titanium.Database.open(this.name);
-                  dbCache[this.name] = db;
+                if (!this.db) {
+                  this.db = Titanium.Database.open(this.name);
                 }
 
                 // Start a transaction
-                db.execute('BEGIN TRANSACTION');
+                this.db.execute('BEGIN TRANSACTION');
 
                 // Create the table if it does not exist yet
-                db.execute('CREATE TABLE IF NOT EXISTS ' + escapedCollection + ' ' + '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
+                this.db.execute('CREATE TABLE IF NOT EXISTS ' + escapedCollection + ' ' + '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
 
                 // Execute queries
                 response = (0, _map2.default)(query, function (parts) {
                   var sql = parts[0].replace('#{collection}', escapedCollection);
-                  var cursor = db.execute(sql, parts[1]);
-                  var response = { rowCount: db.getRowsAffected(), result: null };
+                  var cursor = _this.db.execute(sql, parts[1]);
+                  var response = { rowCount: _this.db.getRowsAffected(), result: null };
 
                   if (cursor) {
                     response.result = [];
@@ -99,21 +98,21 @@ var TitaniumDB = exports.TitaniumDB = function () {
 
                 // Commit the transaction
 
-                db.execute('COMMIT TRANSACTION');
+                this.db.execute('COMMIT TRANSACTION');
 
                 return _context.abrupt('return', isMulti ? response : response.shift());
 
-              case 13:
-                _context.prev = 13;
-                _context.t0 = _context['catch'](4);
-                throw new _errors.KinveyError(_context.t0.message);
+              case 12:
+                _context.prev = 12;
+                _context.t0 = _context['catch'](3);
+                throw new _kinveyJavascriptSdkCore.KinveyError(_context.t0.message);
 
-              case 16:
+              case 15:
               case 'end':
                 return _context.stop();
             }
           }
-        }, _callee, this, [[4, 13]]);
+        }, _callee, this, [[3, 12]]);
       }));
 
       function execute(_x2, _x3, _x4) {
@@ -129,7 +128,7 @@ var TitaniumDB = exports.TitaniumDB = function () {
       var promise = this.execute(collection, sql, []).then(function (response) {
         return response.result;
       }).catch(function (error) {
-        if (error instanceof _errors.NotFoundError) {
+        if (error instanceof _kinveyJavascriptSdkCore.NotFoundError) {
           return [];
         }
 
@@ -140,14 +139,14 @@ var TitaniumDB = exports.TitaniumDB = function () {
   }, {
     key: 'findById',
     value: function findById(collection, id) {
-      var _this = this;
+      var _this2 = this;
 
       var sql = 'SELECT value FROM #{collection} WHERE key = ?';
       var promise = this.execute(collection, sql, [id]).then(function (response) {
         var entities = response.result;
 
         if (entities.length === 0) {
-          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this.name + ' webSQL database.'));
+          throw new _kinveyJavascriptSdkCore.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this2.name + ' webSQL database.'));
         }
 
         return entities[0];
@@ -172,14 +171,14 @@ var TitaniumDB = exports.TitaniumDB = function () {
   }, {
     key: 'removeById',
     value: function removeById(collection, id) {
-      var _this2 = this;
+      var _this3 = this;
 
       var promise = this.execute(collection, [['SELECT value FROM #{collection} WHERE key = ?', [id]], ['DELETE FROM #{collection} WHERE key = ?', [id]]], null).then(function (response) {
         var entities = response[0].result;
         var count = response[1].rowCount || entities.length;
 
         if (count === 0) {
-          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this2.name + ' webSQL database.'));
+          throw new _kinveyJavascriptSdkCore.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
         }
 
         return {
@@ -194,39 +193,35 @@ var TitaniumDB = exports.TitaniumDB = function () {
     key: 'clear',
     value: function () {
       var _ref2 = _asyncToGenerator(_regeneratorRuntime2.default.mark(function _callee2() {
-        var db;
         return _regeneratorRuntime2.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                db = dbCache[this.name];
-
-
-                if (!db) {
-                  db = Titanium.Database.open(this.name);
+                if (!this.db) {
+                  this.db = Titanium.Database.open(this.name);
                 }
 
-                if (!(0, _isFunction2.default)(db.remove)) {
-                  _context2.next = 5;
+                if (!(0, _isFunction2.default)(this.db.remove)) {
+                  _context2.next = 4;
                   break;
                 }
 
                 // Android
-                db.remove();
+                this.db.remove();
                 return _context2.abrupt('return', null);
 
-              case 5:
-                if (!(db.file && db.file.deleteFile())) {
-                  _context2.next = 7;
+              case 4:
+                if (!(this.db.file && this.db.file.deleteFile())) {
+                  _context2.next = 6;
                   break;
                 }
 
                 return _context2.abrupt('return', null);
 
-              case 7:
+              case 6:
                 throw new Error('The mechanism to delete the database is not implemented for this platform.');
 
-              case 8:
+              case 7:
               case 'end':
                 return _context2.stop();
             }

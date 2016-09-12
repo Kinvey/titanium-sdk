@@ -1,10 +1,9 @@
-import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core/dist/errors';
+import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core';
 import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
-const dbCache = {};
 
 /**
  * @private
@@ -15,29 +14,27 @@ export class TitaniumDB {
   }
 
   async execute(collection, query, parameters) {
-    let db = dbCache[this.name];
     const escapedCollection = `"${collection}"`;
     const isMulti = isArray(query);
     query = isMulti ? query : [[query, parameters]];
 
     try {
-      if (!db) {
-        db = Titanium.Database.open(this.name);
-        dbCache[this.name] = db;
+      if (!this.db) {
+        this.db = Titanium.Database.open(this.name);
       }
 
       // Start a transaction
-      db.execute('BEGIN TRANSACTION');
+      this.db.execute('BEGIN TRANSACTION');
 
       // Create the table if it does not exist yet
-      db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
+      this.db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
         '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
 
       // Execute queries
       const response = map(query, parts => {
         const sql = parts[0].replace('#{collection}', escapedCollection);
-        const cursor = db.execute(sql, parts[1]);
-        const response = { rowCount: db.getRowsAffected(), result: null };
+        const cursor = this.db.execute(sql, parts[1]);
+        const response = { rowCount: this.db.getRowsAffected(), result: null };
 
         if (cursor) {
           response.result = [];
@@ -55,7 +52,7 @@ export class TitaniumDB {
       });
 
       // Commit the transaction
-      db.execute('COMMIT TRANSACTION');
+      this.db.execute('COMMIT TRANSACTION');
 
       return isMulti ? response : response.shift();
     } catch (error) {
@@ -128,18 +125,16 @@ export class TitaniumDB {
   }
 
   async clear() {
-    let db = dbCache[this.name];
-
-    if (!db) {
-      db = Titanium.Database.open(this.name);
+    if (!this.db) {
+      this.db = Titanium.Database.open(this.name);
     }
 
-    if (isFunction(db.remove)) { // Android
-      db.remove();
+    if (isFunction(this.db.remove)) { // Android
+      this.db.remove();
       return null;
     }
 
-    if (db.file && db.file.deleteFile()) { // iOS
+    if (this.db.file && this.db.file.deleteFile()) { // iOS
       return null;
     }
 
