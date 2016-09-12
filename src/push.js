@@ -1,9 +1,5 @@
-import { KinveyError } from 'kinvey-javascript-sdk-core/dist/errors';
+import { KinveyError, NetworkRequest, AuthType, RequestMethod, User, Client } from 'kinvey-javascript-sdk-core';
 import { EventEmitter } from 'events';
-import { NetworkRequest } from 'kinvey-javascript-sdk-core/dist/requests/network';
-import { AuthType, RequestMethod } from 'kinvey-javascript-sdk-core/dist/requests/request';
-import { User } from 'kinvey-javascript-sdk-core/dist/user';
-import { Client } from 'kinvey-javascript-sdk-core/dist/client';
 import { Device } from './device';
 import { Promise } from 'es6-promise';
 import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
