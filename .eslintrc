@@ -1,18 +1,37 @@
-{
-  "extends": "airbnb/base",
+ {
+  "extends": "airbnb",
   "parser": "babel-eslint",
   "rules": {
-    "id-length": 0,
-    "no-param-reassign": 0,
-    "comma-dangle": 0,
-    "no-shadow": 0,
-    "func-names": 0,
-    "object-shorthand": [2, "methods"],
-    "max-len": [2, 120, 2],
-    "space-before-function-paren": 0,
-    "no-loop-func": 1
+    "comma-dangle": "off",
+    "func-names": "off",
+    "id-length": "off",
+    "max-len": [
+      "warn",
+      {
+        "code": 120,
+        "tabWidth": 2,
+        "ignoreComments": true,
+        "ignoreTrailingComments": true
+      }
+    ],
+    "no-console": "error",
+    "no-loop-func": "warn",
+    "no-param-reassign": "off",
+    "no-shadow": "off",
+    "no-underscore-dangle": "off",
+    "object-shorthand": [
+      "error",
+      "methods"
+    ],
+    "space-before-function-paren": "off"
   },
-  "globals": {
+  "env": {
+    "browser": true,
+    "es6": true,
+    "mocha": true,
+    "node": true
+  },
+   "globals": {
     "Titanium": false,
     "CloudPush": false
   }
