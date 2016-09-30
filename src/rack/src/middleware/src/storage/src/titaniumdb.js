@@ -1,26 +1,23 @@
-import { KinveyError, NotFoundError } from 'kinvey-javascript-sdk-core';
-import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
+import { NotFoundError } from '../../errors';
+import Promise from 'es6-promise';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
 
-/**
- * @private
- */
-export class TitaniumDB {
+export default class TitaniumDB {
   constructor(name = 'kinvey') {
     this.name = name;
   }
 
-  async execute(collection, query, parameters) {
+  execute(collection, query, parameters) {
     const escapedCollection = `"${collection}"`;
     const isMulti = isArray(query);
     query = isMulti ? query : [[query, parameters]];
 
     try {
       if (!this.db) {
-        this.db = Titanium.Database.open(this.name);
+        this.db = global.Titanium.Database.open(this.name);
       }
 
       // Start a transaction
@@ -54,9 +51,9 @@ export class TitaniumDB {
       // Commit the transaction
       this.db.execute('COMMIT TRANSACTION');
 
-      return isMulti ? response : response.shift();
+      return Promise.resolve(isMulti ? response : response.shift());
     } catch (error) {
-      throw new KinveyError(error.message);
+      return Promise.reject(error);
     }
   }
 
@@ -124,24 +121,24 @@ export class TitaniumDB {
     return promise;
   }
 
-  async clear() {
+  clear() {
     if (!this.db) {
-      this.db = Titanium.Database.open(this.name);
+      this.db = global.Titanium.Database.open(this.name);
     }
 
     if (isFunction(this.db.remove)) { // Android
       this.db.remove();
-      return null;
+      return Promise.resolve(null);
     }
 
     if (this.db.file && this.db.file.deleteFile()) { // iOS
-      return null;
+      return Promise.resolve(null);
     }
 
-    throw new Error('The mechanism to delete the database is not implemented for this platform.');
+    return Promise.reject(new Error('The ability to delete the database is not implemented for this platform.'));
   }
 
   static isSupported() {
-    return typeof Titanium.Database !== 'undefined';
+    return typeof global.Titanium !== 'undefined' && typeof global.Titanium.Database !== 'undefined';
   }
 }

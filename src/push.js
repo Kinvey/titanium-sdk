@@ -2,7 +2,6 @@ import { KinveyError, NetworkRequest, AuthType, RequestMethod, User, Client } fr
 import { EventEmitter } from 'events';
 import { Device } from './device';
 import { Promise } from 'es6-promise';
-import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
 import url from 'url';
 import bind from 'lodash/bind';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';

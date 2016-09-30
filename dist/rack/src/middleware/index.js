@@ -3,27 +3,18 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.HttpMiddleware = exports.CacheMiddleware = undefined;
 
 var _cache = require('./src/cache');
 
-Object.keys(_cache).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _cache[key];
-    }
-  });
-});
+var _cache2 = _interopRequireDefault(_cache);
 
 var _http = require('./src/http');
 
-Object.keys(_http).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _http[key];
-    }
-  });
-});
+var _http2 = _interopRequireDefault(_http);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Export
+exports.CacheMiddleware = _cache2.default;
+exports.HttpMiddleware = _http2.default;

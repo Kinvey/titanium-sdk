@@ -1,103 +1,133 @@
 import { EventEmitter } from 'events';
-import { Promise } from 'es6-promise';
-import { isAndroid, isiOS } from './device';
-import isFunction from 'lodash/isFunction';
 import bind from 'lodash/bind';
-import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
+import isFunction from 'lodash/isFunction';
 
-/**
- * @private
- */
-export class Popup extends EventEmitter {
-  async open(url = '/') {
-    this.eventListeners = {
-      loadHandler: bind(this.loadHandler, this),
-      clickHandler: bind(this.clickHandler, this),
-      closeHandler: bind(this.closeHandler, this)
+export default class Popup extends EventEmitter {
+  open(url = '/', options = {}) {
+    let interval;
+    let eventListeners;
+    let popupWindow;
+    let titaniumWebView;
+    let titaniumCloseButton;
+
+    // clickHandler
+    const clickHandler = () => {
+      popupWindow.close();
     };
 
-    this.tiWebView = Titanium.UI.createWebView({
+    // loadStartCallback
+    const loadStartCallback = (event) => {
+      this.emit('loadstart', event);
+    };
+
+    // loadStopCallback
+    const loadStopCallback = (event) => {
+      this.emit('loadstop', event);
+    };
+
+    // loadErrorCallback
+    const loadErrorCallback = (event) => {
+      this.emit('error', event);
+    };
+
+    // exitCallback
+    const exitCallback = () => {
+      // Clear the interval
+      clearInterval(interval);
+
+      // Close the popup
+      popupWindow.close();
+      this.popupWindow = null;
+
+      // Remove event listeners
+      if (popupWindow && isFunction(popupWindow.removeEventListener)) {
+        popupWindow.removeEventListener('loadstart', eventListeners.loadStopCallback);
+        popupWindow.removeEventListener('loadstop', eventListeners.loadStopCallback);
+        popupWindow.removeEventListener('loaderror', eventListeners.loadErrorCallback);
+        popupWindow.removeEventListener('close', eventListeners.exitCallback);
+        popupWindow.removeEventListener('androidback', eventListeners.exitCallback);
+        popupWindow.removeEventListener('exit', eventListeners.exitCallback);
+      }
+
+      if (titaniumWebView && isFunction(titaniumWebView.removeEventListener)) {
+        titaniumWebView.removeEventListener('load', eventListeners.loadHandler);
+        titaniumWebView.removeEventListener('error', eventListeners.loadHandler);
+      }
+
+      if (titaniumCloseButton && isFunction(titaniumCloseButton.removeEventListener)) {
+        titaniumCloseButton.removeEventListener('click', eventListeners.clickHandler);
+      }
+
+      // Emit closed
+      this.emit('closed');
+    };
+
+    // Bind event listeners
+    eventListeners = {
+      clickHandler: bind(clickHandler, this),
+      loadStartCallback: bind(loadStartCallback, this),
+      loadStopCallback: bind(loadStopCallback, this),
+      loadErrorCallback: bind(loadErrorCallback, this),
+      exitCallback: bind(exitCallback, this)
+    };
+
+    // Create popup window for Titanium
+    titaniumWebView = global.Titanium.UI.createWebView({
       width: '100%',
       height: '100%',
       url: url
     });
+    titaniumWebView.addEventListener('load', eventListeners.loadStopCallback);
+    titaniumWebView.addEventListener('error', eventListeners.loadErrorCallback);
 
-    this.popup = Titanium.UI.createWindow({
+    popupWindow = global.Titanium.UI.createWindow({
       backgroundColor: 'white',
       barColor: '#000',
-      title: 'Mobile Identity Connect',
+      title: options.title || 'Kinvey Mobile Identity Connect',
       modal: true
     });
-    this.popup.add(this.tiWebView);
+    popupWindow.add(titaniumWebView);
 
-    if (isiOS()) {
-      this.tiWin = Titanium.UI.createWindow({
+    if (global.Titanium.Platform.osname === 'iphone' || global.Titanium.Platform.osname === 'ipad') {
+      const tiWindow = global.Titanium.UI.createWindow({
         backgroundColor: 'white',
         barColor: '#e3e3e3',
-        title: 'Mobile Identity Connect'
+        title: options.title || 'Kinvey Mobile Identity Connect',
       });
-      this.tiWin.add(this.tiWebView);
+      tiWindow.add(titaniumWebView);
 
-      this.tiCloseButton = Titanium.UI.createButton({
+      titaniumCloseButton = global.Titanium.UI.createButton({
         title: 'Close',
-        style: Titanium.UI.iPhone.SystemButtonStyle.DONE
+        style: global.Titanium.UI.iPhone.SystemButtonStyle.DONE
       });
-      this.tiWin.setLeftNavButton(this.tiCloseButton);
-      this.tiCloseButton.addEventListener('click', this.eventListeners.clickHandler);
+      tiWindow.setLeftNavButton(titaniumCloseButton);
+      titaniumCloseButton.addEventListener('click', eventListeners.clickHandler);
 
-      this.popup = Titanium.UI.iOS.createNavigationWindow({
+      popupWindow = global.Titanium.UI.iOS.createNavigationWindow({
         backgroundColor: 'white',
-        window: this.tiWin,
+        window: tiWindow,
         modal: true
       });
-    } else if (isAndroid()) {
-      this.popup.addEventListener('androidback', this.eventListeners.closeHandler);
+    } else if (global.Titanium.Platform.osname === 'android') {
+      popupWindow.addEventListener('androidback', eventListeners.exitCallback);
     }
 
-    this.tiWebView.addEventListener('load', this.eventListeners.loadHandler);
-    this.tiWebView.addEventListener('error', this.eventListeners.loadHandler);
-    this.popup.addEventListener('close', this.eventListeners.closeHandler);
-    this.popup.open();
+    // Open the popup
+    popupWindow.addEventListener('close', eventListeners.exitCallback);
+    popupWindow.open();
+
+    // Set the popupWindow instance
+    this.popupWindow = popupWindow;
+
+    // Return this
     return this;
   }
 
   close() {
-    const promise = new Promise(resolve => {
-      this.popup.close();
-      resolve();
-    });
-    return promise;
-  }
-
-  loadHandler(event) {
-    this.emit('loadstop', event.url);
-  }
-
-  clickHandler() {
-    this.close();
-  }
-
-  closeHandler() {
-    clearTimeout(this.interval);
-
-    if (isFunction(this.popup.removeEventListener)) {
-      this.popup.removeEventListener('close', this.eventListeners.closeHandler);
+    if (this.popupWindow) {
+      this.popupWindow.close();
     }
 
-    this.tiWebView.removeEventListener('load', this.eventListeners.loadHandler);
-    this.tiWebView.removeEventListener('error', this.eventListeners.loadHandler);
-
-    if (isiOS()) {
-      this.tiCloseButton.removeEventListener('click', this.eventListeners.clickHandler);
-    } else if (isAndroid()) {
-      this.popup.close();
-
-      if (isFunction(this.popup.removeEventListener)) {
-        this.popup.removeEventListener('androidback', this.eventListeners.closeHandler);
-      }
-    }
-
-    this.emit('closed');
+    return this;
   }
 }
-

@@ -1,2 +1,8 @@
-export * from './src/cache';
-export * from './src/http';
+import CacheMiddleware from './src/cache';
+import HttpMiddleware from './src/http';
+
+// Export
+export {
+  CacheMiddleware,
+  HttpMiddleware
+};

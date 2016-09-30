@@ -1,39 +1,20 @@
-import { CacheRequest, NetworkRequest } from 'kinvey-javascript-sdk-core';
-import { Kinvey as Html5Kinvey } from 'kinvey-html5-sdk';
-import {
-  CacheRack,
-  NetworkRack,
-  CacheMiddleware,
-  HttpMiddleware
-} from './rack';
-import { Device } from './device';
-import { Popup } from './popup';
-import { Push } from './push';
-import { Promise } from 'es6-promise';
+import NodeKinvey from 'kinvey-node-sdk';
+import { CacheRack, NetworkRack } from './rack';
+import Device from './device';
 
-// Extend the Html5Kinvey class
-export class Kinvey extends Html5Kinvey {
+export default class Kinvey extends NodeKinvey {
   static init(options) {
+    options.cacheRack = new CacheRack();
+    options.networkRack = new NetworkRack();
+    options.deviceClass = Device;
+
     // Initialize Kinvey
     const client = super.init(options);
 
-    // Add Push module to Kinvey
-    this.Push = new Push();
+    // // Add Push module to Kinvey
+    // this.Push = new Push();
 
     // Return the client
     return client;
   }
 }
-
-// Set CacheRequest rack
-CacheRequest.rack = new CacheRack();
-
-// Set NetworkRequest rack
-NetworkRequest.rack = new NetworkRack();
-
-// Add modules
-Kinvey.Device = Device;
-Kinvey.Popup = Popup;
-Kinvey.Promise = Promise;
-Kinvey.CacheMiddleware = CacheMiddleware;
-Kinvey.HttpMiddleware = HttpMiddleware;

@@ -1,4 +1,9 @@
-import { Kinvey } from './kinvey';
+import Kinvey from './kinvey';
 
 // Export
-module.exports = Kinvey;
+export {
+  Kinvey
+};
+
+// Export default
+export default Kinvey;

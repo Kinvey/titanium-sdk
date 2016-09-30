@@ -1,15 +1,7 @@
-import { Rack as CoreRack } from 'kinvey-javascript-rack';
-import { SerializeMiddleware, ParseMiddleware } from 'kinvey-html5-sdk';
+import Rack from 'kinvey-node-sdk/dist/rack';
+import SerializeMiddleware from 'kinvey-node-sdk/dist/rack/src/middleware/src/serialize';
+import ParseMiddleware from 'kinvey-node-sdk/dist/rack/src/middleware/src/parse';
 import { CacheMiddleware, HttpMiddleware } from './middleware';
-import regeneratorRuntime from 'regenerator-runtime'; // eslint-disable-line no-unused-vars
-import result from 'lodash/result';
-
-class Rack extends CoreRack {
-  async execute(request) {
-    const { response } = await super.execute(result(request, 'toPlainObject', request));
-    return response;
-  }
-}
 
 export class CacheRack extends Rack {
   constructor(name = 'Cache Rack') {
