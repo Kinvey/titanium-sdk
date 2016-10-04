@@ -1,4 +1,4 @@
-import { NotFoundError } from '../../errors';
+import { NotFoundError } from './errors';
 import Promise from 'es6-promise';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
@@ -17,7 +17,7 @@ export default class TitaniumDB {
 
     try {
       if (!this.db) {
-        this.db = global.Titanium.Database.open(this.name);
+        this.db = Ti.Database.open(this.name);
       }
 
       // Start a transaction
@@ -28,7 +28,7 @@ export default class TitaniumDB {
         '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
 
       // Execute queries
-      const response = map(query, parts => {
+      const response = map(query, (parts) => {
         const sql = parts[0].replace('#{collection}', escapedCollection);
         const cursor = this.db.execute(sql, parts[1]);
         const response = { rowCount: this.db.getRowsAffected(), result: null };
@@ -59,7 +59,7 @@ export default class TitaniumDB {
 
   find(collection) {
     const sql = 'SELECT value FROM #{collection}';
-    const promise = this.execute(collection, sql, []).then(response => response.result).catch(error => {
+    const promise = this.execute(collection, sql, []).then(response => response.result).catch((error) => {
       if (error instanceof NotFoundError) {
         return [];
       }
@@ -71,7 +71,7 @@ export default class TitaniumDB {
 
   findById(collection, id) {
     const sql = 'SELECT value FROM #{collection} WHERE key = ?';
-    const promise = this.execute(collection, sql, [id]).then(response => {
+    const promise = this.execute(collection, sql, [id]).then((response) => {
       const entities = response.result;
 
       if (entities.length === 0) {
@@ -86,7 +86,7 @@ export default class TitaniumDB {
 
   save(collection, entities) {
     const queries = [];
-    entities = map(entities, entity => {
+    entities = map(entities, (entity) => {
       queries.push([
         'INSERT OR REPLACE INTO #{collection} (key, value) VALUES (?, ?)',
         [entity[idAttribute], JSON.stringify(entity)]
@@ -103,7 +103,7 @@ export default class TitaniumDB {
     const promise = this.execute(collection, [
       ['SELECT value FROM #{collection} WHERE key = ?', [id]],
       ['DELETE FROM #{collection} WHERE key = ?', [id]],
-    ], null).then(response => {
+    ], null).then((response) => {
       const entities = response[0].result;
       const count = response[1].rowCount || entities.length;
 
@@ -123,7 +123,7 @@ export default class TitaniumDB {
 
   clear() {
     if (!this.db) {
-      this.db = global.Titanium.Database.open(this.name);
+      this.db = Ti.Database.open(this.name);
     }
 
     if (isFunction(this.db.remove)) { // Android
@@ -139,6 +139,6 @@ export default class TitaniumDB {
   }
 
   static isSupported() {
-    return typeof global.Titanium !== 'undefined' && typeof global.Titanium.Database !== 'undefined';
+    return typeof Ti !== 'undefined' && typeof Ti.Database !== 'undefined';
   }
 }

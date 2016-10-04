@@ -14,34 +14,6 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-// export function isTitanium() {
-//   return typeof Titanium !== 'undefined';
-// }
-
-// export function isiOS() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
-//   }
-
-//   return /iPad|iPhone|iPod/.test(global.navigator.userAgent) && !window.MSStream;
-// }
-
-// export function isAndroid() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.osname === 'android';
-//   }
-
-//   return /Android/.test(global.navigator.userAgent);
-// }
-
-// export function isBrowser() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.name === 'mobileweb';
-//   }
-
-//   return !isiOS() && !isAndroid();
-// }
-
 // Helper function to detect the browser name and version.
 function browserDetect(ua) {
   // Cast arguments.
@@ -58,7 +30,7 @@ function browserDetect(ua) {
 }
 
 function deviceInformation() {
-  var id = global.Titanium.Platform.getId();
+  var id = Ti.Platform.getId();
   var browser = void 0;
   var platform = void 0;
   var version = void 0;
@@ -66,18 +38,18 @@ function deviceInformation() {
   var libraries = [];
 
   // Platforms.
-  libraries.push('titanium/' + global.Titanium.getVersion());
+  libraries.push('titanium/' + Ti.getVersion());
 
   // If mobileweb, extract browser information.
-  if (global.Titanium.Platform.getName() === 'mobileweb') {
-    browser = browserDetect(global.Titanium.Platform.getModel());
+  if (Ti.Platform.getName() === 'mobileweb') {
+    browser = browserDetect(Ti.Platform.getModel());
     platform = browser[1];
     version = browser[2];
-    manufacturer = global.Titanium.Platform.getOstype();
+    manufacturer = Ti.Platform.getOstype();
   } else {
-    platform = global.Titanium.Platform.getOsname();
-    version = global.Titanium.Platform.getVersion();
-    manufacturer = global.Titanium.Platform.getManufacturer();
+    platform = Ti.Platform.getOsname();
+    version = Ti.Platform.getVersion();
+    manufacturer = Ti.Platform.getManufacturer();
   }
 
   // Return the device information string.
@@ -103,6 +75,26 @@ var Device = function () {
   }
 
   _createClass(Device, null, [{
+    key: 'isAndroid',
+    value: function isAndroid() {
+      return Ti.Platform.osname === 'android';
+    }
+  }, {
+    key: 'isiOS',
+    value: function isiOS() {
+      return Device.isiPhone() || Device.isiPad();
+    }
+  }, {
+    key: 'isiPhone',
+    value: function isiPhone() {
+      return Ti.Platform.osname === 'iphone';
+    }
+  }, {
+    key: 'isiPad',
+    value: function isiPad() {
+      return Ti.Platform.osname === 'ipad';
+    }
+  }, {
     key: 'toString',
     value: function toString() {
       return deviceInformation();

@@ -9,15 +9,21 @@ var _rack = require('kinvey-node-sdk/dist/rack');
 
 var _rack2 = _interopRequireDefault(_rack);
 
-var _serialize = require('kinvey-node-sdk/dist/rack/src/middleware/src/serialize');
+var _serialize = require('kinvey-node-sdk/dist/rack/src/serialize');
 
 var _serialize2 = _interopRequireDefault(_serialize);
 
-var _parse = require('kinvey-node-sdk/dist/rack/src/middleware/src/parse');
+var _parse = require('kinvey-node-sdk/dist/rack/src/parse');
 
 var _parse2 = _interopRequireDefault(_parse);
 
-var _middleware = require('./middleware');
+var _cache = require('./cache');
+
+var _cache2 = _interopRequireDefault(_cache);
+
+var _http = require('./http');
+
+var _http2 = _interopRequireDefault(_http);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -37,7 +43,7 @@ var CacheRack = exports.CacheRack = function (_Rack) {
 
     var _this = _possibleConstructorReturn(this, (CacheRack.__proto__ || Object.getPrototypeOf(CacheRack)).call(this, name));
 
-    _this.use(new _middleware.CacheMiddleware());
+    _this.use(new _cache2.default());
     return _this;
   }
 
@@ -55,7 +61,7 @@ var NetworkRack = exports.NetworkRack = function (_Rack2) {
     var _this2 = _possibleConstructorReturn(this, (NetworkRack.__proto__ || Object.getPrototypeOf(NetworkRack)).call(this, name));
 
     _this2.use(new _serialize2.default());
-    _this2.use(new _middleware.HttpMiddleware());
+    _this2.use(new _http2.default());
     _this2.use(new _parse2.default());
     return _this2;
   }

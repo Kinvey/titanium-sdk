@@ -1,4 +1,4 @@
-import NodeCacheMiddleware from 'kinvey-node-sdk/dist/rack/src/middleware/src/cache';
+import NodeCacheMiddleware from 'kinvey-node-sdk/dist/rack/src/cache';
 import Storage from './storage';
 
 export default class CacheMiddleware extends NodeCacheMiddleware {

@@ -45,7 +45,7 @@
     "babel-register": "^6.9.0",
     "del-cli": "^0.2.0",
     "es6-error": "^3.2.0",
-    "es6-promise": "git+https://git@github.com/ThomasConner/es6-promise.git",
+    "es6-promise": "^4.0.4",
     "eslint": "^3.5.0",
     "eslint-config-airbnb-base": "^7.1.0",
     "eslint-plugin-import": "^1.15.0",

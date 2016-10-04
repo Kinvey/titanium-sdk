@@ -1,33 +1,5 @@
 import pkg from '../package.json';
 
-// export function isTitanium() {
-//   return typeof Titanium !== 'undefined';
-// }
-
-// export function isiOS() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.osname === 'iphone' || Titanium.Platform.osname === 'ipad';
-//   }
-
-//   return /iPad|iPhone|iPod/.test(global.navigator.userAgent) && !window.MSStream;
-// }
-
-// export function isAndroid() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.osname === 'android';
-//   }
-
-//   return /Android/.test(global.navigator.userAgent);
-// }
-
-// export function isBrowser() {
-//   if (isTitanium()) {
-//     return Titanium.Platform.name === 'mobileweb';
-//   }
-
-//   return !isiOS() && !isAndroid();
-// }
-
 // Helper function to detect the browser name and version.
 function browserDetect(ua) {
   // Cast arguments.
@@ -45,7 +17,7 @@ function browserDetect(ua) {
 }
 
 function deviceInformation() {
-  const id = global.Titanium.Platform.getId();
+  const id = Ti.Platform.getId();
   let browser;
   let platform;
   let version;
@@ -53,18 +25,18 @@ function deviceInformation() {
   const libraries = [];
 
   // Platforms.
-  libraries.push(`titanium/${global.Titanium.getVersion()}`);
+  libraries.push(`titanium/${Ti.getVersion()}`);
 
   // If mobileweb, extract browser information.
-  if (global.Titanium.Platform.getName() === 'mobileweb') {
-    browser = browserDetect(global.Titanium.Platform.getModel());
+  if (Ti.Platform.getName() === 'mobileweb') {
+    browser = browserDetect(Ti.Platform.getModel());
     platform = browser[1];
     version = browser[2];
-    manufacturer = global.Titanium.Platform.getOstype();
+    manufacturer = Ti.Platform.getOstype();
   } else {
-    platform = global.Titanium.Platform.getOsname();
-    version = global.Titanium.Platform.getVersion();
-    manufacturer = global.Titanium.Platform.getManufacturer();
+    platform = Ti.Platform.getOsname();
+    version = Ti.Platform.getVersion();
+    manufacturer = Ti.Platform.getManufacturer();
   }
 
   // Return the device information string.
@@ -74,7 +46,7 @@ function deviceInformation() {
     parts.push(`(${libraries.sort().join(', ')})`);
   }
 
-  return parts.concat([platform, version, manufacturer, id]).map(part => {
+  return parts.concat([platform, version, manufacturer, id]).map((part) => {
     if (part) {
       return part.toString().replace(/\s/g, '_').toLowerCase();
     }
@@ -84,6 +56,22 @@ function deviceInformation() {
 }
 
 export default class Device {
+  static isAndroid() {
+    return Ti.Platform.osname === 'android';
+  }
+
+  static isiOS() {
+    return Device.isiPhone() || Device.isiPad();
+  }
+
+  static isiPhone() {
+    return Ti.Platform.osname === 'iphone';
+  }
+
+  static isiPad() {
+    return Ti.Platform.osname === 'ipad';
+  }
+
   static toString() {
     return deviceInformation();
   }

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _errors = require('../../errors');
+var _errors = require('./errors');
 
 var _es6Promise = require('es6-promise');
 
@@ -50,7 +50,7 @@ var TitaniumDB = function () {
 
       try {
         if (!this.db) {
-          this.db = global.Titanium.Database.open(this.name);
+          this.db = Ti.Database.open(this.name);
         }
 
         // Start a transaction
@@ -160,7 +160,7 @@ var TitaniumDB = function () {
     key: 'clear',
     value: function clear() {
       if (!this.db) {
-        this.db = global.Titanium.Database.open(this.name);
+        this.db = Ti.Database.open(this.name);
       }
 
       if ((0, _isFunction2.default)(this.db.remove)) {
@@ -179,7 +179,7 @@ var TitaniumDB = function () {
   }], [{
     key: 'isSupported',
     value: function isSupported() {
-      return typeof global.Titanium !== 'undefined' && typeof global.Titanium.Database !== 'undefined';
+      return typeof Ti !== 'undefined' && typeof Ti.Database !== 'undefined';
     }
   }]);
 

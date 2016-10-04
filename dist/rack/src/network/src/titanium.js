@@ -41,7 +41,7 @@ var TitaniumHttp = function () {
 
         // Create an HTTP Client
 
-        var client = global.Titanium.Network.createHTTPClient();
+        var client = Ti.Network.createHTTPClient();
 
         // Open the request
         client.open(method, url);
@@ -57,8 +57,8 @@ var TitaniumHttp = function () {
         client.autoRedirect = autoRedirect || true;
 
         // Set the TLS version (iOS only)
-        if ((0, _isFunction2.default)(client.setTlsVersion) && global.Titanium.Network.TLS_VERSION_1_2) {
-          client.setTlsVersion(global.Titanium.Network.TLS_VERSION_1_2);
+        if ((0, _isFunction2.default)(client.setTlsVersion) && Ti.Network.TLS_VERSION_1_2) {
+          client.setTlsVersion(Ti.Network.TLS_VERSION_1_2);
         }
 
         // Set timeout
@@ -90,7 +90,7 @@ var TitaniumHttp = function () {
   }], [{
     key: 'isSupported',
     value: function isSupported() {
-      return typeof global.Titanium !== 'undefined' && typeof global.Titanium.Network !== 'undefined';
+      return typeof Ti !== 'undefined' && typeof Ti.Network !== 'undefined';
     }
   }]);
 

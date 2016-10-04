@@ -9,7 +9,7 @@ export default class TitaniumHttp {
       const { url, method, headers, body, autoRedirect } = request;
 
       // Create an HTTP Client
-      const client = global.Titanium.Network.createHTTPClient();
+      const client = Ti.Network.createHTTPClient();
 
       // Open the request
       client.open(method, url);
@@ -25,8 +25,8 @@ export default class TitaniumHttp {
       client.autoRedirect = autoRedirect || true;
 
       // Set the TLS version (iOS only)
-      if (isFunction(client.setTlsVersion) && global.Titanium.Network.TLS_VERSION_1_2) {
-        client.setTlsVersion(global.Titanium.Network.TLS_VERSION_1_2);
+      if (isFunction(client.setTlsVersion) && Ti.Network.TLS_VERSION_1_2) {
+        client.setTlsVersion(Ti.Network.TLS_VERSION_1_2);
       }
 
       // Set timeout
@@ -57,6 +57,6 @@ export default class TitaniumHttp {
   }
 
   static isSupported() {
-    return typeof global.Titanium !== 'undefined' && typeof global.Titanium.Network !== 'undefined';
+    return typeof Ti !== 'undefined' && typeof Ti.Network !== 'undefined';
   }
 }

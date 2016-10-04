@@ -1,19 +1,14 @@
 import { EventEmitter } from 'events';
+import Device from './device';
 import bind from 'lodash/bind';
 import isFunction from 'lodash/isFunction';
 
 export default class Popup extends EventEmitter {
   open(url = '/', options = {}) {
-    let interval;
     let eventListeners;
     let popupWindow;
     let titaniumWebView;
     let titaniumCloseButton;
-
-    // clickHandler
-    const clickHandler = () => {
-      popupWindow.close();
-    };
 
     // loadStartCallback
     const loadStartCallback = (event) => {
@@ -32,9 +27,6 @@ export default class Popup extends EventEmitter {
 
     // exitCallback
     const exitCallback = () => {
-      // Clear the interval
-      clearInterval(interval);
-
       // Close the popup
       popupWindow.close();
       this.popupWindow = null;
@@ -50,21 +42,21 @@ export default class Popup extends EventEmitter {
       }
 
       if (titaniumWebView && isFunction(titaniumWebView.removeEventListener)) {
-        titaniumWebView.removeEventListener('load', eventListeners.loadHandler);
-        titaniumWebView.removeEventListener('error', eventListeners.loadHandler);
+        titaniumWebView.removeEventListener('load', eventListeners.loadStopCallback);
+        titaniumWebView.removeEventListener('error', eventListeners.loadErrorCallback);
       }
 
       if (titaniumCloseButton && isFunction(titaniumCloseButton.removeEventListener)) {
-        titaniumCloseButton.removeEventListener('click', eventListeners.clickHandler);
+        titaniumCloseButton.removeEventListener('click', eventListeners.closeHandler);
       }
 
       // Emit closed
-      this.emit('closed');
+      this.emit('exit');
     };
 
     // Bind event listeners
     eventListeners = {
-      clickHandler: bind(clickHandler, this),
+      closeHandler: bind(this.close, this),
       loadStartCallback: bind(loadStartCallback, this),
       loadStopCallback: bind(loadStopCallback, this),
       loadErrorCallback: bind(loadErrorCallback, this),
@@ -72,7 +64,7 @@ export default class Popup extends EventEmitter {
     };
 
     // Create popup window for Titanium
-    titaniumWebView = global.Titanium.UI.createWebView({
+    titaniumWebView = Ti.UI.createWebView({
       width: '100%',
       height: '100%',
       url: url
@@ -80,7 +72,7 @@ export default class Popup extends EventEmitter {
     titaniumWebView.addEventListener('load', eventListeners.loadStopCallback);
     titaniumWebView.addEventListener('error', eventListeners.loadErrorCallback);
 
-    popupWindow = global.Titanium.UI.createWindow({
+    popupWindow = Ti.UI.createWindow({
       backgroundColor: 'white',
       barColor: '#000',
       title: options.title || 'Kinvey Mobile Identity Connect',
@@ -88,27 +80,29 @@ export default class Popup extends EventEmitter {
     });
     popupWindow.add(titaniumWebView);
 
-    if (global.Titanium.Platform.osname === 'iphone' || global.Titanium.Platform.osname === 'ipad') {
-      const tiWindow = global.Titanium.UI.createWindow({
+    if (Device.isiOS()) {
+      const tiWindow = Ti.UI.createWindow({
         backgroundColor: 'white',
         barColor: '#e3e3e3',
         title: options.title || 'Kinvey Mobile Identity Connect',
       });
       tiWindow.add(titaniumWebView);
 
-      titaniumCloseButton = global.Titanium.UI.createButton({
+      titaniumCloseButton = Ti.UI.createButton({
         title: 'Close',
-        style: global.Titanium.UI.iPhone.SystemButtonStyle.DONE
+        style: Ti.UI.iOS !== 'undefined'
+          ? Ti.UI.iOS.SystemButtonStyle.DONE
+          : Ti.UI.iPhone.SystemButtonStyle.DONE
       });
       tiWindow.setLeftNavButton(titaniumCloseButton);
-      titaniumCloseButton.addEventListener('click', eventListeners.clickHandler);
+      titaniumCloseButton.addEventListener('click', eventListeners.closeHandler);
 
-      popupWindow = global.Titanium.UI.iOS.createNavigationWindow({
+      popupWindow = Ti.UI.iOS.createNavigationWindow({
         backgroundColor: 'white',
         window: tiWindow,
         modal: true
       });
-    } else if (global.Titanium.Platform.osname === 'android') {
+    } else if (Device.isAndroid()) {
       popupWindow.addEventListener('androidback', eventListeners.exitCallback);
     }
 
