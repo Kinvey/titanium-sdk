@@ -26,6 +26,10 @@ var _push = require('./push');
 
 var _push2 = _interopRequireDefault(_push);
 
+var _assign = require('lodash/assign');
+
+var _assign2 = _interopRequireDefault(_assign);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -45,11 +49,15 @@ var Kinvey = function (_NodeKinvey) {
 
   _createClass(Kinvey, null, [{
     key: 'init',
-    value: function init(options) {
-      options.cacheRack = new _rack.CacheRack();
-      options.networkRack = new _rack.NetworkRack();
-      options.deviceClass = _device2.default;
-      options.popupClass = _popup2.default;
+    value: function init() {
+      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+      options = (0, _assign2.default)({
+        cacheRack: new _rack.CacheRack(),
+        networkRack: new _rack.NetworkRack(),
+        deviceClass: _device2.default,
+        popupClass: _popup2.default
+      }, options);
 
       // Initialize Kinvey
       var client = _get(Kinvey.__proto__ || Object.getPrototypeOf(Kinvey), 'init', this).call(this, options);
