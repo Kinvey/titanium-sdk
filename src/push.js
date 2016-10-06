@@ -46,10 +46,6 @@ export default class Push extends EventEmitter {
   }
 
   register(options = {}) {
-    const notificationListener = bind((data) => {
-      this.emit(notificationEvent, data);
-    }, this);
-
     if (this.isSupported() === false) {
       return Promise.reject(
         new Error('Kinvey currently only supports push notifications on iOS and Android platforms.')
@@ -60,6 +56,10 @@ export default class Push extends EventEmitter {
       .catch(() => null)
       .then(() => {
         return new Promise((resolve, reject) => {
+          const notificationListener = bind((data) => {
+            this.emit(notificationEvent, data);
+          }, this);
+
           if (Device.isiOS()) {
             if (parseInt(Ti.Platform.version.split('.')[0], 10) >= 8) {
               Ti.App.iOS.addEventListener('usernotificationsettings', function registerForPush() {
@@ -142,28 +142,26 @@ export default class Push extends EventEmitter {
           throw new Error('Unable to retrieve the device id to register this device for push notifications.');
         }
 
-        return User.getActiveUser(this.client)
-          .then((user) => {
-            const request = new KinveyRequest({
-              method: RequestMethod.POST,
-              url: url.format({
-                protocol: this.client.protocol,
-                host: this.client.host,
-                pathname: `${this.pathname}/register-device`
-              }),
-              properties: options.properties,
-              authType: user ? AuthType.Session : AuthType.Master,
-              data: {
-                platform: Device.isiOS() ? 'ios' : 'android',
-                framework: 'titanium',
-                deviceId: deviceId,
-                userId: user ? undefined : options.userId
-              },
-              timeout: options.timeout,
-              client: this.client
-            });
-            return request.execute();
-          })
+        const user = User.getActiveUser(this.client);
+        const request = new KinveyRequest({
+          method: RequestMethod.POST,
+          url: url.format({
+            protocol: this.client.protocol,
+            host: this.client.host,
+            pathname: `${this.pathname}/register-device`
+          }),
+          properties: options.properties,
+          authType: user ? AuthType.Session : AuthType.Master,
+          data: {
+            platform: Device.isiOS() ? 'ios' : 'android',
+            framework: 'titanium',
+            deviceId: deviceId,
+            userId: user ? undefined : options.userId
+          },
+          timeout: options.timeout,
+          client: this.client
+        });
+        return request.execute()
           .then(response => response.data)
           .then((data) => {
             const request = new CacheReqeust({
@@ -174,8 +172,7 @@ export default class Push extends EventEmitter {
                 pathname: `${this.pathname}/device`
               }),
               data: {
-                deviceId: deviceId,
-                options: JSON.stringify(options)
+                deviceId: deviceId
               },
               client: this.client
             });
@@ -208,30 +205,28 @@ export default class Push extends EventEmitter {
           throw new Error('This device has not been registered for push notifications.');
         }
 
-        return User.getActiveUser(this.client)
-          .then((user) => {
-            const request = new KinveyRequest({
-              method: RequestMethod.POST,
-              url: url.format({
-                protocol: this.client.protocol,
-                host: this.client.host,
-                pathname: `${this.pathname}/unregister-device`
-              }),
-              properties: options.properties,
-              authType: user ? AuthType.Session : AuthType.Master,
-              data: {
-                platform: Device.isiOS() ? 'ios' : 'android',
-                framework: 'titanium',
-                deviceId: deviceId,
-                userId: user ? null : options.userId
-              },
-              timeout: options.timeout,
-              client: this.client
-            });
-            return request.execute();
-          });
+        const user = User.getActiveUser(this.client);
+        const request = new KinveyRequest({
+          method: RequestMethod.POST,
+          url: url.format({
+            protocol: this.client.protocol,
+            host: this.client.host,
+            pathname: `${this.pathname}/unregister-device`
+          }),
+          properties: options.properties,
+          authType: user ? AuthType.Session : AuthType.Master,
+          data: {
+            platform: Device.isiOS() ? 'ios' : 'android',
+            framework: 'titanium',
+            deviceId: deviceId,
+            userId: user ? null : options.userId
+          },
+          timeout: options.timeout,
+          client: this.client
+        });
+        return request.execute()
+          .then(response => response.data);
       })
-      .then(response => response.data)
       .then((data) => {
         const request = new CacheReqeust({
           method: RequestMethod.DELETE,

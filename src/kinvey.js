@@ -3,13 +3,16 @@ import { CacheRack, NetworkRack } from './rack';
 import Device from './device';
 import Popup from './popup';
 import Push from './push';
+import assign from 'lodash/assign';
 
 export default class Kinvey extends NodeKinvey {
-  static init(options) {
-    options.cacheRack = new CacheRack();
-    options.networkRack = new NetworkRack();
-    options.deviceClass = Device;
-    options.popupClass = Popup;
+  static init(options = {}) {
+    options = assign({
+      cacheRack: new CacheRack(),
+      networkRack: new NetworkRack(),
+      deviceClass: Device,
+      popupClass: Popup
+    }, options);
 
     // Initialize Kinvey
     const client = super.init(options);
