@@ -1,6 +1,6 @@
 /**
  * @preserve
- * kinvey-titanium-sdk v3.2.1
+ * kinvey-titanium-sdk v3.2.2
  * Kinvey JavaScript SDK for Titanium applications.
  * http://www.kinvey.com
  *
@@ -33928,10 +33928,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
 	        }
 
-	        return {
-	          count: 1,
-	          entities: entities
-	        };
+	        return entities[0];
 	      });
 
 	      return promise;
@@ -34484,7 +34481,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = {
 		"name": "kinvey-titanium-sdk",
-		"version": "3.2.1",
+		"version": "3.2.2",
 		"description": "Kinvey JavaScript SDK for Titanium applications.",
 		"homepage": "http://www.kinvey.com",
 		"bugs": {
@@ -34513,7 +34510,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			"lint:test": "eslint test/unit/**",
 			"preversion": "npm test",
 			"postversion": "git push && git push --tags",
-			"s3": "shjs ./scripts/before_deploy.js",
+			"s3": "npm run build && shjs ./scripts/s3.js",
 			"test": "mocha --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
 			"test:watch": "mocha -w --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
 			"transpile": "babel src --out-dir dist",

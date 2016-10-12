@@ -148,10 +148,7 @@ var TitaniumDB = function () {
           throw new _errors.NotFoundError('An entity with _id = ' + id + ' was not found in the ' + collection + ' ' + ('collection on the ' + _this3.name + ' webSQL database.'));
         }
 
-        return {
-          count: 1,
-          entities: entities
-        };
+        return entities[0];
       });
 
       return promise;
