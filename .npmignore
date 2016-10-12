@@ -23,6 +23,7 @@ README.md
 .env
 .tmp
 tmp
+/s3
 
 # Test Files
 coverage
