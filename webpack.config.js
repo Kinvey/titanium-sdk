@@ -23,7 +23,7 @@ module.exports = {
     ]
   },
   output: {
-    filename: 'kinvey-titanium-sdk.js',
+    filename: pkg.name + '.js',
     libraryTarget: 'umd',
     library: 'Kinvey',
     path: path.join(__dirname, 'dist')
