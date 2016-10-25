@@ -33,12 +33,8 @@ export default class Popup extends EventEmitter {
 
       // Remove event listeners
       if (popupWindow && isFunction(popupWindow.removeEventListener)) {
-        popupWindow.removeEventListener('loadstart', eventListeners.loadStopCallback);
-        popupWindow.removeEventListener('loadstop', eventListeners.loadStopCallback);
-        popupWindow.removeEventListener('loaderror', eventListeners.loadErrorCallback);
         popupWindow.removeEventListener('close', eventListeners.exitCallback);
         popupWindow.removeEventListener('androidback', eventListeners.exitCallback);
-        popupWindow.removeEventListener('exit', eventListeners.exitCallback);
       }
 
       if (titaniumWebView && isFunction(titaniumWebView.removeEventListener)) {
