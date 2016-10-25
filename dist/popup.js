@@ -73,12 +73,8 @@ var Popup = function (_EventEmitter) {
 
         // Remove event listeners
         if (popupWindow && (0, _isFunction2.default)(popupWindow.removeEventListener)) {
-          popupWindow.removeEventListener('loadstart', eventListeners.loadStopCallback);
-          popupWindow.removeEventListener('loadstop', eventListeners.loadStopCallback);
-          popupWindow.removeEventListener('loaderror', eventListeners.loadErrorCallback);
           popupWindow.removeEventListener('close', eventListeners.exitCallback);
           popupWindow.removeEventListener('androidback', eventListeners.exitCallback);
-          popupWindow.removeEventListener('exit', eventListeners.exitCallback);
         }
 
         if (titaniumWebView && (0, _isFunction2.default)(titaniumWebView.removeEventListener)) {
