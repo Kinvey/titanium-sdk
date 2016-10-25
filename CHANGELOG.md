@@ -2,7 +2,7 @@
 ## [v3.2.3](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.3) (2016-10-26)
 
 **Bug fixes:**
-- Return entity that was removed with `removeById` rather then the object `{ count: 1, entities: <entity> }`.
+- Fix typo of `CacheRequest` in `Push` module.
 
 ## [v3.2.2](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.2) (2016-10-12)
 
