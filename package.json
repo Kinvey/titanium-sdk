@@ -38,14 +38,14 @@
   "dependencies": {
     "es6-error": "^3.2.0",
     "es6-promise": "^4.0.4",
-    "kinvey-node-sdk": "3.2.1",
+    "kinvey-node-sdk": "3.2.2",
     "lodash": "^4.16.2",
     "parse-headers": "^2.0.1"
   },
   "peerDependencies": {
     "es6-error": "^3.2.0",
     "es6-promise": "^4.0.4",
-    "kinvey-node-sdk": "3.2.1",
+    "kinvey-node-sdk": "3.2.2",
     "lodash": "^4.16.2"
   },
   "devDependencies": {
