@@ -11,6 +11,9 @@ import bind from 'lodash/bind';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 const notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
 
+// eslint-disable-next-line
+import CloudPush from 'ti.cloudpush';
+
 export default class Push extends EventEmitter {
   constructor(options = {}) {
     super();
