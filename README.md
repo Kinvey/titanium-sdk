@@ -15,13 +15,13 @@ Download the sdk by visiting the [Titanium Downloads Page](http://devcenter.kinv
 If you are using the Alloy framework, add the snippet below to `app/alloy.js`. The SDK is now globally available under `Alloy.Globals.Kinvey`.
 
 ```javascript
-var Kinvey = Alloy.Globals.Kinvey = require('kinvey-titanium-sdk.min');
+var Kinvey = Alloy.Globals.Kinvey = require('kinvey-titanium-sdk');
 ```
 
 If you are not using the Alloy framework, add the snippet below to `Resources/app.js`. The SDK is globally available under Kinvey.
 
 ```javascript
-var Kinvey = require('kinvey-titanium-sdk.min');
+var Kinvey = require('kinvey-titanium-sdk');
 ```
 
 Next, use `Kinvey.init` to configure your app. Replace `<appKey>` and `<appSecret>` with your apps app key and secret. You can find these for your app using the [Kinvey Console App](https://console.kinvey.com).
@@ -48,40 +48,27 @@ Kinvey.ping().then(function(response) {
 You are now ready to start building your awesome apps! Next we recommend diving into the [User guide](http://devcenter.kinvey.com/titanium-v3.0/guides/users) or [Data store guide](http://devcenter.kinvey.com/titanium-v3.0/guides/datastore) to learn more about our service, or explore the [sample apps](http://devcenter.kinvey.com/titanium-v3.0/samples) to go straight to working projects.
 
 ## Build
-The simplest way to build the sdk is by running `gulp`. More advanced tasks are available.
-
-* `gulp build`: build the sdk
-* `gulp bump`: bump the pacakge version. Please see [Flags](#Flags).
-* `gulp bundle`: bundle the sdk for dist
-* `gulp clean`: remove files created by the build process
-* `gulp lint`: lint the src files
-* `gulp tag`: create a git tag for the version
-* `gulp upload`: upload dist files to AWS S3
-
-#### Flags
-The following flags are available when running `gulp bump`:
-
-* `--type <major|minor|patch|prerelease>`: Bumps the package version using the [Semantic Version 2.0.0](http://semver.org/) spec. Defaults to `patch`.
-* `--version <version>`: Sets the package version to the provided version.
-
-## Test
-
-You can run the tests using `npm test`.
+`npm run build`
 
 ## Release
-The workflow for releasing a new version of the sdk is as follows:
+[TravisCI](https://travis-ci.org/Kinvey/titanium-sdk) will deploy the pacakge to [NPM](https://www.npmjs.com/package/kinvey-titanium-sdk).
 
-1. Commit all changes on the develop branch.
-2. Checkout the master branch and merge the develop branch.
-3. Update the [Changelog](CHANGELOG.md).
-4. Run `gulp bump --type <type>` replacing `<type>` with major, minor, patch, or prerelease. See [Flags](#Flags) above.
-5. Run `gulp bundle` and commit file changes.
-6. Make sure all changes are committed on the master branch and push.
-7. Checkout the develop branch and merge the master branch.
-8. Tag the version with git.
-9. Update Dev Center and Sample apps.
+1. Checkout the master branch.
+2. Update the CHANGELOG.md.
+3. Execute `npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]`. See [Version Management](#version-management) for more info on incrementing the version.
 
-*Note: The [Titanium Release Job](https://build.kinvey.com/jenkins/view/Libraries/job/titanium-sdk-release/) will upload the build to [AWS S3](https://aws.amazon.com/s3/) and publish the [pacakge](https://www.npmjs.com/package/kinvey-html5-sdk) on NPM.*
+### Version Management
+Updating the package version should follow [Semantic Version 2.0.0](http://semver.org/):
+
+* Major (x.0.0): when making an incompatible API changes.
+* Minor (3.x.0): when adding functionality in a backwards-compatible manner.
+* Patch (3.0.x): when making backwards-compatible bug fixes or enhancements.
+
+## Test
+_Note: Before running any tests you will need to run `npm install` to install any dependencies required._
+
+### Unit Tests
+`npm test`
 
 ## License
 
