@@ -1,9 +1,11 @@
 import { NotFoundError } from './errors';
+import { isDefined } from 'kinvey-node-sdk/dist/utils';
 import Promise from 'es6-promise';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
+let isSupported;
 
 export default class TitaniumDB {
   constructor(name = 'kinvey') {
@@ -136,6 +138,26 @@ export default class TitaniumDB {
   }
 
   static isSupported() {
-    return typeof Ti !== 'undefined' && typeof Ti.Database !== 'undefined';
+    const name = 'testTitaniumDBSupport';
+
+    if (isDefined(isSupported)) {
+      return Promise.resolve(isSupported);
+    }
+
+    if (isDefined(Ti) === false || isDefined(Ti.Database) === false) {
+      return Promise.resolve(false);
+    }
+
+    const db = new TitaniumDB(name);
+    return db.save(name, { _id: '1' })
+      .then(() => db.clear())
+      .then(() => {
+        isSupported = true;
+        return true;
+      })
+      .catch(() => {
+        isSupported = false;
+        return false;
+      });
   }
 }

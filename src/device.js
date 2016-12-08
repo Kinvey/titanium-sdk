@@ -16,7 +16,7 @@ function browserDetect(ua) {
     rOpera.exec(ua) || rSafari.exec(ua) || [];
 }
 
-function deviceInformation() {
+export function deviceInformation() {
   const id = Ti.Platform.getId();
   let browser;
   let platform;
