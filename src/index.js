@@ -1,8 +1,4 @@
-import Kinvey from 'kinvey-node-sdk';
-import Push from './push';
+import Kinvey from './kinvey';
 
-// Add Push module to Kinvey
-Kinvey.Push = Push;
-
-// Export
-module.exports = Kinvey;
+// Export default
+export default Kinvey;

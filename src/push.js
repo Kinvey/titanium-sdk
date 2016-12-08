@@ -1,4 +1,6 @@
-import { AuthType, RequestMethod, CacheReqeust, KinveyRequest } from 'kinvey-node-sdk/dist/request';
+import { AuthType, RequestMethod } from 'kinvey-node-sdk/dist/request';
+import CacheReqeust from 'kinvey-node-sdk/dist/request/src/cacherequest';
+import KinveyRequest from 'kinvey-node-sdk/dist/request/src/kinveyrequest';
 import { Client } from 'kinvey-node-sdk/dist/client';
 import { User } from 'kinvey-node-sdk/dist/entity';
 import { EventEmitter } from 'events';
@@ -12,7 +14,7 @@ const notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification
 // eslint-disable-next-line
 import CloudPush from 'ti.cloudpush';
 
-class Push extends EventEmitter {
+export default class Push extends EventEmitter {
   constructor(options = {}) {
     super();
     this.client = options.client || Client.sharedInstance();
@@ -243,5 +245,3 @@ class Push extends EventEmitter {
       });
   }
 }
-
-export default new Push();

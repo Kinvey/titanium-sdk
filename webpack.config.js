@@ -16,7 +16,7 @@ var BANNER = '/**\n'
 
 module.exports = {
   context: path.join(__dirname, 'dist'),
-  entry: ['core-js/es6/symbol', './index.js'],
+  entry: ['core-js/es6/symbol', './webpack.js'],
   externals: {
     'ti.cloudpush': 'ti.cloudpush'
   },
@@ -32,18 +32,6 @@ module.exports = {
     path: path.join(__dirname, 'dist')
   },
   plugins: [
-    new webpack.BannerPlugin(BANNER, { raw: true }),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/request\/src\/device\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/device.js'))
-    ),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/identity\/src\/popup\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/popup.js'))
-    ),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/request\/src\/middleware\index\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/middleware/index.js'))
-    )
+    new webpack.BannerPlugin(BANNER, { raw: true })
   ]
 };
