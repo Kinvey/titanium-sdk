@@ -1,4 +1,9 @@
 ## Changelog
+## [v3.2.4](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.4) (2016-12-13)
+
+**Bug fixes:**
+- Require `ti.cloudpush` modules properly to receive push notifications on the Android platform.
+
 ## [v3.2.3](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.3) (2016-10-26)
 
 **Bug fixes:**
