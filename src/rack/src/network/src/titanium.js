@@ -44,8 +44,14 @@ export default class TitaniumHttp {
       };
 
       // onerror listener
-      client.onerror = function onError(e) {
-        reject(e.error);
+      client.onerror = function onError() {
+        resolve({
+          response: {
+            statusCode: this.status,
+            headers: parseHeaders(this.allResponseHeaders),
+            data: this.responseText
+          }
+        });
       };
 
       // Send request
