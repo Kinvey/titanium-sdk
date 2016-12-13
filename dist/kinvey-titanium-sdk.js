@@ -1,6 +1,6 @@
 /**
  * @preserve
- * kinvey-titanium-sdk v3.2.3
+ * kinvey-titanium-sdk v3.2.4
  * Kinvey JavaScript SDK for Titanium applications.
  * http://www.kinvey.com
  *
@@ -12,14 +12,14 @@
 
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory();
+		module.exports = factory(require("ti.cloudpush"));
 	else if(typeof define === 'function' && define.amd)
-		define([], factory);
+		define(["ti.cloudpush"], factory);
 	else if(typeof exports === 'object')
-		exports["Kinvey"] = factory();
+		exports["Kinvey"] = factory(require("ti.cloudpush"));
 	else
-		root["Kinvey"] = factory();
-})(this, function() {
+		root["Kinvey"] = factory(root["ti.cloudpush"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_424__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -11016,6 +11016,7 @@ return /******/ (function(modules) { // webpackBootstrap
 			"type": "version"
 		},
 		"_requiredBy": [
+			"#USER",
 			"/"
 		],
 		"_resolved": "https://registry.npmjs.org/kinvey-node-sdk/-/kinvey-node-sdk-3.2.2.tgz",
@@ -11361,6 +11362,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	        observable.operator = operator;
 	        return observable;
 	    };
+	    /**
+	     * Registers handlers for handling emitted values, error and completions from the observable, and
+	     *  executes the observable's subscriber function, which will take action to set up the underlying data stream
+	     * @method subscribe
+	     * @param {PartialObserver|Function} observerOrNext (optional) either an observer defining all functions to be called,
+	     *  or the first of three possible handlers, which is the handler for each value emitted from the observable.
+	     * @param {Function} error (optional) a handler for a terminal event resulting from an error. If no error handler is provided,
+	     *  the error will be thrown as unhandled
+	     * @param {Function} complete (optional) a handler for a terminal event resulting from successful completion.
+	     * @return {ISubscription} a subscription reference to the registered handlers
+	     */
 	    Observable.prototype.subscribe = function (observerOrNext, error, complete) {
 	        var operator = this.operator;
 	        var sink = toSubscriber_1.toSubscriber(observerOrNext, error, complete);
@@ -11459,16 +11471,18 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {"use strict";
-	/**
-	 * window: browser in DOM main thread
-	 * self: browser in WebWorker
-	 * global: Node.js/other
-	 */
-	exports.root = (typeof window == 'object' && window.window === window && window
-	    || typeof self == 'object' && self.self === self && self
-	    || typeof global == 'object' && global.global === global && global);
-	if (!exports.root) {
-	    throw new Error('RxJS could not find any global context (window, self, global)');
+	var objectTypes = {
+	    'boolean': false,
+	    'function': true,
+	    'object': true,
+	    'number': false,
+	    'string': false,
+	    'undefined': false
+	};
+	exports.root = (objectTypes[typeof self] && self) || (objectTypes[typeof window] && window);
+	var freeGlobal = objectTypes[typeof global] && global;
+	if (freeGlobal && (freeGlobal.global === freeGlobal || freeGlobal.window === freeGlobal)) {
+	    exports.root = freeGlobal;
 	}
 	//# sourceMappingURL=root.js.map
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
@@ -11480,7 +11494,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var Subscriber_1 = __webpack_require__(230);
 	var rxSubscriber_1 = __webpack_require__(239);
-	var Observer_1 = __webpack_require__(238);
 	function toSubscriber(nextOrObserver, error, complete) {
 	    if (nextOrObserver) {
 	        if (nextOrObserver instanceof Subscriber_1.Subscriber) {
@@ -11491,7 +11504,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    }
 	    if (!nextOrObserver && !error && !complete) {
-	        return new Subscriber_1.Subscriber(Observer_1.empty);
+	        return new Subscriber_1.Subscriber();
 	    }
 	    return new Subscriber_1.Subscriber(nextOrObserver, error, complete);
 	}
@@ -34415,8 +34428,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        };
 
 	        // onerror listener
-	        client.onerror = function onError(e) {
-	          reject(e.error);
+	        client.onerror = function onError() {
+	          resolve({
+	            response: {
+	              statusCode: this.status,
+	              headers: (0, _parseHeaders2.default)(this.allResponseHeaders),
+	              data: this.responseText
+	            }
+	          });
 	        };
 
 	        // Send request
@@ -34686,7 +34705,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = {
 		"name": "kinvey-titanium-sdk",
-		"version": "3.2.3",
+		"version": "3.2.4",
 		"description": "Kinvey JavaScript SDK for Titanium applications.",
 		"homepage": "http://www.kinvey.com",
 		"bugs": {
@@ -34726,13 +34745,8 @@ return /******/ (function(modules) { // webpackBootstrap
 			"es6-promise": "^4.0.4",
 			"kinvey-node-sdk": "3.2.2",
 			"lodash": "^4.16.2",
-			"parse-headers": "^2.0.1"
-		},
-		"peerDependencies": {
-			"es6-error": "^3.2.0",
-			"es6-promise": "^4.0.4",
-			"kinvey-node-sdk": "3.2.2",
-			"lodash": "^4.16.2"
+			"parse-headers": "^2.0.1",
+			"rxjs": "5.0.0-beta.12"
 		},
 		"devDependencies": {
 			"babel-cli": "^6.14.0",
@@ -36635,14 +36649,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _request = __webpack_require__(263);
 
-	var _cacherequest = __webpack_require__(264);
-
-	var _cacherequest2 = _interopRequireDefault(_cacherequest);
-
-	var _kinveyrequest = __webpack_require__(293);
-
-	var _kinveyrequest2 = _interopRequireDefault(_kinveyrequest);
-
 	var _client = __webpack_require__(60);
 
 	var _entity = __webpack_require__(323);
@@ -36665,6 +36671,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _bind2 = _interopRequireDefault(_bind);
 
+	var _ti = __webpack_require__(424);
+
+	var _ti2 = _interopRequireDefault(_ti);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -36675,6 +36685,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 	var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+
+	// eslint-disable-next-line
 
 	var Push = function (_EventEmitter) {
 	  _inherits(Push, _EventEmitter);
@@ -36790,7 +36802,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	              });
 	            }
 	          } else if (_device2.default.isAndroid()) {
-	            CloudPush.retrieveDeviceToken({
+	            _ti2.default.retrieveDeviceToken({
 	              success: function success(e) {
 	                resolve(e.deviceToken);
 	              },
@@ -36806,7 +36818,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 
 	        var user = _entity.User.getActiveUser(_this2.client);
-	        var request = new _kinveyrequest2.default({
+	        var request = new _request.KinveyRequest({
 	          method: _request.RequestMethod.POST,
 	          url: _url2.default.format({
 	            protocol: _this2.client.protocol,
@@ -36827,7 +36839,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return request.execute().then(function (response) {
 	          return response.data;
 	        }).then(function (data) {
-	          var request = new _cacherequest2.default({
+	          var request = new _request.CacheRequest({
 	            method: _request.RequestMethod.PUT,
 	            url: _url2.default.format({
 	              protocol: _this2.client.protocol,
@@ -36856,7 +36868,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return _es6Promise2.default.reject(new Error('Kinvey currently only supports push notifications on iOS and Android platforms.'));
 	      }
 
-	      var request = new _cacherequest2.default({
+	      var request = new _request.CacheRequest({
 	        method: _request.RequestMethod.GET,
 	        url: _url2.default.format({
 	          protocol: this.client.protocol,
@@ -36875,7 +36887,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 
 	        var user = _entity.User.getActiveUser(_this3.client);
-	        var request = new _kinveyrequest2.default({
+	        var request = new _request.KinveyRequest({
 	          method: _request.RequestMethod.POST,
 	          url: _url2.default.format({
 	            protocol: _this3.client.protocol,
@@ -36897,7 +36909,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          return response.data;
 	        });
 	      }).then(function (data) {
-	        var request = new _cacherequest2.default({
+	        var request = new _request.CacheRequest({
 	          method: _request.RequestMethod.DELETE,
 	          url: _url2.default.format({
 	            protocol: _this3.client.protocol,
@@ -36935,6 +36947,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	exports.default = Push;
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(59)))
+
+/***/ },
+/* 424 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_424__;
 
 /***/ }
 /******/ ])

@@ -8,14 +8,6 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 var _request = require('kinvey-node-sdk/dist/request');
 
-var _cacherequest = require('kinvey-node-sdk/dist/request/src/cacherequest');
-
-var _cacherequest2 = _interopRequireDefault(_cacherequest);
-
-var _kinveyrequest = require('kinvey-node-sdk/dist/request/src/kinveyrequest');
-
-var _kinveyrequest2 = _interopRequireDefault(_kinveyrequest);
-
 var _client = require('kinvey-node-sdk/dist/client');
 
 var _entity = require('kinvey-node-sdk/dist/entity');
@@ -38,6 +30,10 @@ var _bind = require('lodash/bind');
 
 var _bind2 = _interopRequireDefault(_bind);
 
+var _ti = require('ti.cloudpush');
+
+var _ti2 = _interopRequireDefault(_ti);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -48,6 +44,8 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+
+// eslint-disable-next-line
 
 var Push = function (_EventEmitter) {
   _inherits(Push, _EventEmitter);
@@ -163,7 +161,7 @@ var Push = function (_EventEmitter) {
               });
             }
           } else if (_device2.default.isAndroid()) {
-            CloudPush.retrieveDeviceToken({
+            _ti2.default.retrieveDeviceToken({
               success: function success(e) {
                 resolve(e.deviceToken);
               },
@@ -179,7 +177,7 @@ var Push = function (_EventEmitter) {
         }
 
         var user = _entity.User.getActiveUser(_this2.client);
-        var request = new _kinveyrequest2.default({
+        var request = new _request.KinveyRequest({
           method: _request.RequestMethod.POST,
           url: _url2.default.format({
             protocol: _this2.client.protocol,
@@ -200,7 +198,7 @@ var Push = function (_EventEmitter) {
         return request.execute().then(function (response) {
           return response.data;
         }).then(function (data) {
-          var request = new _cacherequest2.default({
+          var request = new _request.CacheRequest({
             method: _request.RequestMethod.PUT,
             url: _url2.default.format({
               protocol: _this2.client.protocol,
@@ -229,7 +227,7 @@ var Push = function (_EventEmitter) {
         return _es6Promise2.default.reject(new Error('Kinvey currently only supports push notifications on iOS and Android platforms.'));
       }
 
-      var request = new _cacherequest2.default({
+      var request = new _request.CacheRequest({
         method: _request.RequestMethod.GET,
         url: _url2.default.format({
           protocol: this.client.protocol,
@@ -248,7 +246,7 @@ var Push = function (_EventEmitter) {
         }
 
         var user = _entity.User.getActiveUser(_this3.client);
-        var request = new _kinveyrequest2.default({
+        var request = new _request.KinveyRequest({
           method: _request.RequestMethod.POST,
           url: _url2.default.format({
             protocol: _this3.client.protocol,
@@ -270,7 +268,7 @@ var Push = function (_EventEmitter) {
           return response.data;
         });
       }).then(function (data) {
-        var request = new _cacherequest2.default({
+        var request = new _request.CacheRequest({
           method: _request.RequestMethod.DELETE,
           url: _url2.default.format({
             protocol: _this3.client.protocol,

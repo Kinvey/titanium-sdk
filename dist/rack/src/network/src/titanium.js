@@ -76,8 +76,14 @@ var TitaniumHttp = function () {
         };
 
         // onerror listener
-        client.onerror = function onError(e) {
-          reject(e.error);
+        client.onerror = function onError() {
+          resolve({
+            response: {
+              statusCode: this.status,
+              headers: (0, _parseHeaders2.default)(this.allResponseHeaders),
+              data: this.responseText
+            }
+          });
         };
 
         // Send request
