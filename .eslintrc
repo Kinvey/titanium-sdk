@@ -39,7 +39,6 @@
     "node": true
   },
   "globals": {
-    "CloudPush": true,
     "Ti": true
   }
 }
