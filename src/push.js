@@ -138,6 +138,8 @@ export default class Push extends EventEmitter {
                   + ' push notifications.', e));
               }
             });
+
+            CloudPush.addEventListener('callback', notificationListener);
           }
         });
       })
