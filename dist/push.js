@@ -30,10 +30,6 @@ var _bind = require('lodash/bind');
 
 var _bind2 = _interopRequireDefault(_bind);
 
-var _ti = require('ti.cloudpush');
-
-var _ti2 = _interopRequireDefault(_ti);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -44,8 +40,12 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+var CloudPush = void 0;
 
-// eslint-disable-next-line
+if (_device2.default.isAndroid()) {
+  // eslint-disable-next-line
+  CloudPush = require('./cloudpush');
+}
 
 var Push = function (_EventEmitter) {
   _inherits(Push, _EventEmitter);
@@ -161,7 +161,7 @@ var Push = function (_EventEmitter) {
               });
             }
           } else if (_device2.default.isAndroid()) {
-            _ti2.default.retrieveDeviceToken({
+            CloudPush.retrieveDeviceToken({
               success: function success(e) {
                 resolve(e.deviceToken);
               },
@@ -169,6 +169,8 @@ var Push = function (_EventEmitter) {
                 reject(new Error('An error occurred registering this device for' + ' push notifications.', e));
               }
             });
+
+            CloudPush.addEventListener('callback', notificationListener);
           }
         });
       }).then(function (deviceId) {

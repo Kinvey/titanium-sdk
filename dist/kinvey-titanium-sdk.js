@@ -1,6 +1,6 @@
 /**
  * @preserve
- * kinvey-titanium-sdk v3.2.4
+ * kinvey-titanium-sdk v3.2.5
  * Kinvey JavaScript SDK for Titanium applications.
  * http://www.kinvey.com
  *
@@ -12,14 +12,14 @@
 
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("ti.cloudpush"));
+		module.exports = factory();
 	else if(typeof define === 'function' && define.amd)
-		define(["ti.cloudpush"], factory);
+		define([], factory);
 	else if(typeof exports === 'object')
-		exports["Kinvey"] = factory(require("ti.cloudpush"));
+		exports["Kinvey"] = factory();
 	else
-		root["Kinvey"] = factory(root["ti.cloudpush"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_424__) {
+		root["Kinvey"] = factory();
+})(this, function() {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -34705,7 +34705,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = {
 		"name": "kinvey-titanium-sdk",
-		"version": "3.2.4",
+		"version": "3.2.5",
 		"description": "Kinvey JavaScript SDK for Titanium applications.",
 		"homepage": "http://www.kinvey.com",
 		"bugs": {
@@ -34746,7 +34746,8 @@ return /******/ (function(modules) { // webpackBootstrap
 			"kinvey-node-sdk": "3.2.2",
 			"lodash": "^4.16.2",
 			"parse-headers": "^2.0.1",
-			"rxjs": "5.0.0-beta.12"
+			"rxjs": "5.0.0-beta.12",
+			"webpack-external-require": "1.0.0"
 		},
 		"devDependencies": {
 			"babel-cli": "^6.14.0",
@@ -36671,10 +36672,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _bind2 = _interopRequireDefault(_bind);
 
-	var _ti = __webpack_require__(424);
-
-	var _ti2 = _interopRequireDefault(_ti);
-
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -36685,8 +36682,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 	var notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+	var CloudPush = void 0;
 
-	// eslint-disable-next-line
+	if (_device2.default.isAndroid()) {
+	  // eslint-disable-next-line
+	  CloudPush = __webpack_require__(424);
+	}
 
 	var Push = function (_EventEmitter) {
 	  _inherits(Push, _EventEmitter);
@@ -36802,7 +36803,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	              });
 	            }
 	          } else if (_device2.default.isAndroid()) {
-	            _ti2.default.retrieveDeviceToken({
+	            CloudPush.retrieveDeviceToken({
 	              success: function success(e) {
 	                resolve(e.deviceToken);
 	              },
@@ -36810,6 +36811,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	                reject(new Error('An error occurred registering this device for' + ' push notifications.', e));
 	              }
 	            });
+
+	            CloudPush.addEventListener('callback', notificationListener);
 	          }
 	        });
 	      }).then(function (deviceId) {
@@ -36952,7 +36955,11 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 424 */
 /***/ function(module, exports) {
 
-	module.exports = __WEBPACK_EXTERNAL_MODULE_424__;
+	'use strict';
+
+	// eslint-disable-next-line
+	var CloudPush = require('ti.cloudpush');
+	module.exports = CloudPush;
 
 /***/ }
 /******/ ])
