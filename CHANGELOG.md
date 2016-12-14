@@ -1,4 +1,9 @@
 ## Changelog
+## [v3.2.5](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.5) (2016-12-14)
+
+**Bug fixes:**
+- Do not require `ti.cloudpush` module on the iOS platform.
+
 ## [v3.2.4](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.4) (2016-12-13)
 
 **Bug fixes:**
