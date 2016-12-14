@@ -17,13 +17,11 @@ var BANNER = '/**\n'
 module.exports = {
   context: path.join(__dirname, 'dist'),
   entry: ['core-js/es6/symbol', './webpack.js'],
-  externals: {
-    'ti.cloudpush': 'ti.cloudpush'
-  },
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json-loader' }
-    ]
+    ],
+    noParse: [/cloudpush.js/]
   },
   output: {
     filename: pkg.name + '.js',

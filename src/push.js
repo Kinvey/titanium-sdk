@@ -8,9 +8,12 @@ import url from 'url';
 import bind from 'lodash/bind';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 const notificationEvent = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';
+let CloudPush;
 
-// eslint-disable-next-line
-import CloudPush from 'ti.cloudpush';
+if (Device.isAndroid()) {
+  // eslint-disable-next-line
+  CloudPush = require('./cloudpush');
+}
 
 export default class Push extends EventEmitter {
   constructor(options = {}) {
