@@ -1,4 +1,10 @@
 ## Changelog
+## [v3.3.5](https://github.com/Kinvey/titanium-sdk/tree/v3.3.5) (2016-01-25)
+[Full Changelog](https://github.com/Kinvey/titanium-sdk/compare/v3.2.5...v3.3.5)<br/>
+
+**Updated Dependencies:**
+- Updated `kinvey-node-sdk` to `v3.3.5`.
+
 ## [v3.2.5](https://github.com/Kinvey/kinvey-nodejs/tree/v3.2.5) (2016-12-14)
 
 **Bug fixes:**
