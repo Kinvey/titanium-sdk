@@ -1,4 +1,4 @@
-import Middleware from 'kinvey-node-sdk/dist/rack/src/middleware';
+import Middleware from 'kinvey-node-sdk/dist/request/src/middleware/src/middleware';
 import Http from './network';
 
 export default class HttpMiddleware extends Middleware {

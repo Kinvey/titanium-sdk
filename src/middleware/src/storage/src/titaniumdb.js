@@ -4,6 +4,7 @@ import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
+let isSupported;
 
 export default class TitaniumDB {
   constructor(name = 'kinvey') {
@@ -135,7 +136,30 @@ export default class TitaniumDB {
     return Promise.reject(new Error('The ability to delete the database is not implemented for this platform.'));
   }
 
-  static isSupported() {
-    return typeof Ti !== 'undefined' && typeof Ti.Database !== 'undefined';
+  static loadAdapter(name) {
+    const db = new TitaniumDB(name);
+
+    if (typeof isSupported !== 'undefined') {
+      if (isSupported) {
+        return Promise.resolve(db);
+      }
+
+      return Promise.resolve(undefined);
+    }
+
+    if (typeof Ti === 'undefined' || typeof Ti.Database === 'undefined') {
+      isSupported = false;
+      return Promise.resolve(undefined);
+    }
+
+    return db.save('__testSupport', { _id: '1' })
+      .then(() => {
+        isSupported = true;
+        return db;
+      })
+      .catch(() => {
+        isSupported = false;
+        return undefined;
+      });
   }
 }

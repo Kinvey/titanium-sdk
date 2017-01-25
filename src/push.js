@@ -15,7 +15,7 @@ if (Device.isAndroid()) {
   CloudPush = require('./cloudpush');
 }
 
-export default class Push extends EventEmitter {
+class Push extends EventEmitter {
   constructor(options = {}) {
     super();
     this.client = options.client || Client.sharedInstance();
@@ -248,3 +248,5 @@ export default class Push extends EventEmitter {
       });
   }
 }
+
+export default new Push();

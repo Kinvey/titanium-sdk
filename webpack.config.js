@@ -30,6 +30,22 @@ module.exports = {
     path: path.join(__dirname, 'dist')
   },
   plugins: [
-    new webpack.BannerPlugin(BANNER, { raw: true })
+    new webpack.BannerPlugin(BANNER, { raw: true }),
+    new webpack.NormalModuleReplacementPlugin(
+      /kinvey-node-sdk\/dist\/request\/src\/device\.js/,
+      require.resolve(path.resolve(__dirname, 'dist/device.js'))
+    ),
+    new webpack.NormalModuleReplacementPlugin(
+      /kinvey-node-sdk\/dist\/identity\/src\/popup\.js/,
+      require.resolve(path.resolve(__dirname, 'dist/popup.js'))
+    ),
+    new webpack.NormalModuleReplacementPlugin(
+      /kinvey-node-sdk\/dist\/request\/src\/middleware\/src\/cache\.js/,
+      require.resolve(path.resolve(__dirname, 'dist/middleware/src/cache.js'))
+    ),
+    new webpack.NormalModuleReplacementPlugin(
+      /kinvey-node-sdk\/dist\/request\/src\/middleware\/src\/http\.js/,
+      require.resolve(path.resolve(__dirname, 'dist/middleware/src/http.js'))
+    )
   ]
 };
