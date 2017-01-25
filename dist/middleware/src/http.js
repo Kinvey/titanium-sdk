@@ -6,13 +6,13 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _cache = require('kinvey-node-sdk/dist/rack/src/cache');
+var _middleware = require('kinvey-node-sdk/dist/request/src/middleware/src/middleware');
 
-var _cache2 = _interopRequireDefault(_cache);
+var _middleware2 = _interopRequireDefault(_middleware);
 
-var _storage = require('./storage');
+var _network = require('./network');
 
-var _storage2 = _interopRequireDefault(_storage);
+var _network2 = _interopRequireDefault(_network);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -22,23 +22,26 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var CacheMiddleware = function (_NodeCacheMiddleware) {
-  _inherits(CacheMiddleware, _NodeCacheMiddleware);
+var HttpMiddleware = function (_Middleware) {
+  _inherits(HttpMiddleware, _Middleware);
 
-  function CacheMiddleware() {
-    _classCallCheck(this, CacheMiddleware);
+  function HttpMiddleware() {
+    var name = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'Http Middleware';
 
-    return _possibleConstructorReturn(this, (CacheMiddleware.__proto__ || Object.getPrototypeOf(CacheMiddleware)).apply(this, arguments));
+    _classCallCheck(this, HttpMiddleware);
+
+    return _possibleConstructorReturn(this, (HttpMiddleware.__proto__ || Object.getPrototypeOf(HttpMiddleware)).call(this, name));
   }
 
-  _createClass(CacheMiddleware, [{
-    key: 'openStorage',
-    value: function openStorage(name) {
-      return new _storage2.default(name);
+  _createClass(HttpMiddleware, [{
+    key: 'handle',
+    value: function handle(request, response) {
+      var http = new _network2.default();
+      return http.handle(request, response);
     }
   }]);
 
-  return CacheMiddleware;
-}(_cache2.default);
+  return HttpMiddleware;
+}(_middleware2.default);
 
-exports.default = CacheMiddleware;
+exports.default = HttpMiddleware;

@@ -29,6 +29,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
+var isSupported = void 0;
 
 var TitaniumDB = function () {
   function TitaniumDB() {
@@ -174,9 +175,30 @@ var TitaniumDB = function () {
       return _es6Promise2.default.reject(new Error('The ability to delete the database is not implemented for this platform.'));
     }
   }], [{
-    key: 'isSupported',
-    value: function isSupported() {
-      return typeof Ti !== 'undefined' && typeof Ti.Database !== 'undefined';
+    key: 'loadAdapter',
+    value: function loadAdapter(name) {
+      var db = new TitaniumDB(name);
+
+      if (typeof isSupported !== 'undefined') {
+        if (isSupported) {
+          return _es6Promise2.default.resolve(db);
+        }
+
+        return _es6Promise2.default.resolve(undefined);
+      }
+
+      if (typeof Ti === 'undefined' || typeof Ti.Database === 'undefined') {
+        isSupported = false;
+        return _es6Promise2.default.resolve(undefined);
+      }
+
+      return db.save('__testSupport', { _id: '1' }).then(function () {
+        isSupported = true;
+        return db;
+      }).catch(function () {
+        isSupported = false;
+        return undefined;
+      });
     }
   }]);
 

@@ -33,11 +33,11 @@ var TitaniumHttp = function () {
     key: 'handle',
     value: function handle(request) {
       var promise = new _es6Promise2.default(function (resolve, reject) {
-        var url = request.url;
-        var method = request.method;
-        var headers = request.headers;
-        var body = request.body;
-        var autoRedirect = request.autoRedirect;
+        var url = request.url,
+            method = request.method,
+            headers = request.headers,
+            body = request.body,
+            autoRedirect = request.autoRedirect;
 
         // Create an HTTP Client
 

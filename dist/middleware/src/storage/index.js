@@ -6,13 +6,17 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _middleware = require('kinvey-node-sdk/dist/rack/src/middleware');
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
-var _middleware2 = _interopRequireDefault(_middleware);
+var _storage = require('kinvey-node-sdk/dist/request/src/middleware/src/storage');
 
-var _network = require('./network');
+var _storage2 = _interopRequireDefault(_storage);
 
-var _network2 = _interopRequireDefault(_network);
+var _utils = require('kinvey-node-sdk/dist/utils');
+
+var _titaniumdb = require('./src/titaniumdb');
+
+var _titaniumdb2 = _interopRequireDefault(_titaniumdb);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -22,26 +26,31 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var HttpMiddleware = function (_Middleware) {
-  _inherits(HttpMiddleware, _Middleware);
+var Storage = function (_KinveyStorage) {
+  _inherits(Storage, _KinveyStorage);
 
-  function HttpMiddleware() {
-    var name = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'Http Middleware';
+  function Storage() {
+    _classCallCheck(this, Storage);
 
-    _classCallCheck(this, HttpMiddleware);
-
-    return _possibleConstructorReturn(this, (HttpMiddleware.__proto__ || Object.getPrototypeOf(HttpMiddleware)).call(this, name));
+    return _possibleConstructorReturn(this, (Storage.__proto__ || Object.getPrototypeOf(Storage)).apply(this, arguments));
   }
 
-  _createClass(HttpMiddleware, [{
-    key: 'handle',
-    value: function handle(request, response) {
-      var http = new _network2.default();
-      return http.handle(request, response);
+  _createClass(Storage, [{
+    key: 'getAdapter',
+    value: function getAdapter() {
+      var _this2 = this;
+
+      return _titaniumdb2.default.loadAdapter(this.name).then(function (adapter) {
+        if ((0, _utils.isDefined)(adapter) === false) {
+          return _get(Storage.prototype.__proto__ || Object.getPrototypeOf(Storage.prototype), 'getAdapter', _this2).call(_this2);
+        }
+
+        return adapter;
+      });
     }
   }]);
 
-  return HttpMiddleware;
-}(_middleware2.default);
+  return Storage;
+}(_storage2.default);
 
-exports.default = HttpMiddleware;
+exports.default = Storage;

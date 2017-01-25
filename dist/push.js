@@ -306,4 +306,4 @@ var Push = function (_EventEmitter) {
   return Push;
 }(_events.EventEmitter);
 
-exports.default = Push;
+exports.default = new Push();
