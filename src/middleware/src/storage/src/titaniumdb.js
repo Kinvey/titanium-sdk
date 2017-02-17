@@ -1,5 +1,4 @@
-import { NotFoundError } from './errors';
-import Promise from 'es6-promise';
+import { NotFoundError } from 'kinvey-node-sdk/dist/export';
 import map from 'lodash/map';
 import isArray from 'lodash/isArray';
 import isFunction from 'lodash/isFunction';
@@ -136,7 +135,7 @@ export default class TitaniumDB {
     return Promise.reject(new Error('The ability to delete the database is not implemented for this platform.'));
   }
 
-  static loadAdapter(name) {
+  static load(name) {
     const db = new TitaniumDB(name);
 
     if (typeof isSupported !== 'undefined') {
