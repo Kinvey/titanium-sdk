@@ -19,18 +19,12 @@ module.exports = {
     'rxjs/Observable': path.join(__dirname, 'node_modules/rxjs/Observable')
   },
   context: path.join(__dirname, 'dist'),
-  entry: ['core-js/es6/symbol', 'es6-promise/auto',  './index.js'],
+  entry: ['./rxjs.js', 'core-js/es6/symbol', 'es6-promise/auto',  './index.js'],
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json-loader' }
     ],
     noParse: [/cloudpush.js/]
-  },
-  node: {
-    console: true,
-    fs: 'empty',
-    net: 'empty',
-    tls: 'empty'
   },
   output: {
     filename: pkg.name + '.js',
