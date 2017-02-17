@@ -15,13 +15,22 @@ var BANNER = '/**\n'
   + ' */\n';
 
 module.exports = {
+  alias: {
+    'rxjs/Observable': path.join(__dirname, 'node_modules/rxjs/Observable')
+  },
   context: path.join(__dirname, 'dist'),
-  entry: ['core-js/es6/symbol', './webpack.js'],
+  entry: ['core-js/es6/symbol', 'es6-promise/auto',  './index.js'],
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json-loader' }
     ],
     noParse: [/cloudpush.js/]
+  },
+  node: {
+    console: true,
+    fs: 'empty',
+    net: 'empty',
+    tls: 'empty'
   },
   output: {
     filename: pkg.name + '.js',
@@ -32,20 +41,8 @@ module.exports = {
   plugins: [
     new webpack.BannerPlugin(BANNER, { raw: true }),
     new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/request\/src\/device\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/device.js'))
-    ),
-    new webpack.NormalModuleReplacementPlugin(
       /kinvey-node-sdk\/dist\/identity\/src\/popup\.js/,
       require.resolve(path.resolve(__dirname, 'dist/popup.js'))
-    ),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/request\/src\/middleware\/src\/cache\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/middleware/src/cache.js'))
-    ),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/request\/src\/middleware\/src\/http\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/middleware/src/http.js'))
     )
   ]
 };

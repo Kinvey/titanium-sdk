@@ -40,5 +40,10 @@
   },
   "globals": {
     "Ti": true
+  },
+  "settings": {
+    "import/resolver": {
+      "babel-module": {}
+    }
   }
 }
