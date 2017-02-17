@@ -15,9 +15,6 @@ var BANNER = '/**\n'
   + ' */\n';
 
 module.exports = {
-  alias: {
-    'rxjs/Observable': path.join(__dirname, 'node_modules/rxjs/Observable')
-  },
   context: path.join(__dirname, 'dist'),
   entry: ['./rxjs.js', 'core-js/es6/symbol', 'es6-promise/auto',  './index.js'],
   module: {
