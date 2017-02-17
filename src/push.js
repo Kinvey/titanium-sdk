@@ -1,9 +1,13 @@
-import { AuthType, RequestMethod, CacheRequest, KinveyRequest } from 'kinvey-node-sdk/dist/request';
-import { Client } from 'kinvey-node-sdk/dist/client';
-import { User } from 'kinvey-node-sdk/dist/entity';
+import {
+  AuthType,
+  RequestMethod,
+  CacheRequest,
+  KinveyRequest,
+  User,
+  Client
+} from 'kinvey-node-sdk/dist/export';
 import { EventEmitter } from 'events';
 import Device from './device';
-import Promise from 'es6-promise';
 import url from 'url';
 import bind from 'lodash/bind';
 const pushNamespace = process.env.KINVEY_PUSH_NAMESPACE || 'push';
@@ -16,22 +20,21 @@ if (Device.isAndroid()) {
 }
 
 class Push extends EventEmitter {
-  constructor(options = {}) {
-    super();
-    this.client = options.client || Client.sharedInstance();
-  }
-
   get pathname() {
     return `/${pushNamespace}/${this.client.appKey}`;
   }
 
   get client() {
+    if (!this._client) {
+      return Client.sharedInstance();
+    }
+
     return this._client;
   }
 
   set client(client) {
-    if (typeof client === 'undefined') {
-      throw new Error('Kinvey.Push must have a client defined.');
+    if (!(client instanceof Client)) {
+      throw new Error('client must be an instance of Client.');
     }
 
     this._client = client;
@@ -249,4 +252,6 @@ class Push extends EventEmitter {
   }
 }
 
+// Export
+export { Push };
 export default new Push();
