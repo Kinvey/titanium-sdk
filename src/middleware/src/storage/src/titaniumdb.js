@@ -151,7 +151,7 @@ export default class TitaniumDB {
       return Promise.resolve(undefined);
     }
 
-    return db.save('__testSupport', { _id: '1' })
+    return db.save('__testSupport', [{ _id: '1' }])
       .then(() => {
         isSupported = true;
         return db;
