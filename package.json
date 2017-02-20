@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "es6-promise": "4.0.5",
-    "kinvey-node-sdk": "file:///Users/Thomas/Documents/Kinvey/Development/SDKs/JavaScript/Node/SDK",
+    "kinvey-node-sdk": "3.4.0",
     "lodash": "4.17.4",
     "parse-headers": "2.0.1"
   },
