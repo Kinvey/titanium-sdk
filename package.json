@@ -1,6 +1,6 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.3.5",
+  "version": "3.4.0",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
@@ -36,10 +36,14 @@
     "version": "npm run build && git add -A dist"
   },
   "dependencies": {
+    "core-js": "2.4.1",
     "es6-promise": "4.0.5",
-    "kinvey-node-sdk": "3.4.0",
+    "kinvey-js-sdk": "3.4.2",
     "lodash": "4.17.4",
     "parse-headers": "2.0.1"
+  },
+  "peerDependencies": {
+    "kinvey-js-sdk": "3.4.2"
   },
   "devDependencies": {
     "babel-cli": "^6.14.0",

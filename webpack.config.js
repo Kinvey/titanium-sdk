@@ -16,7 +16,7 @@ var BANNER = '/**\n'
 
 module.exports = {
   context: path.join(__dirname, 'dist'),
-  entry: ['./rxjs.js', 'core-js/es6/symbol', 'es6-promise/auto',  './index.js'],
+  entry: ['./index.js'],
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json-loader' }
@@ -32,7 +32,7 @@ module.exports = {
   plugins: [
     new webpack.BannerPlugin(BANNER, { raw: true }),
     new webpack.NormalModuleReplacementPlugin(
-      /kinvey-node-sdk\/dist\/identity\/src\/popup\.js/,
+      /kinvey-js-sdk\/dist\/identity\/src\/popup\.js/,
       require.resolve(path.resolve(__dirname, 'dist/popup.js'))
     )
   ]
