@@ -7,7 +7,7 @@ import {
   Client,
   isDefined,
   NotFoundError
-} from 'kinvey-node-sdk/dist/export';
+} from 'kinvey-js-sdk/dist/export';
 import { EventEmitter } from 'events';
 import Device from './device';
 import url from 'url';

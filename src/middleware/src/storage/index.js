@@ -1,4 +1,4 @@
-import { Storage as NodeStorage, isDefined } from 'kinvey-node-sdk/dist/export';
+import { Storage as NodeStorage, isDefined } from 'kinvey-js-sdk/dist/export';
 import TitaniumDB from './src/titaniumdb';
 
 export default class Storage extends NodeStorage {

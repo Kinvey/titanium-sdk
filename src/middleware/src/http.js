@@ -1,4 +1,4 @@
-import { Middleware } from 'kinvey-node-sdk/dist/export';
+import { Middleware } from 'kinvey-js-sdk/dist/export';
 import parseHeaders from 'parse-headers';
 import isFunction from 'lodash/isFunction';
 import pkg from 'package.json';
