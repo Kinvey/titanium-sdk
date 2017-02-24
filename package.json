@@ -1,6 +1,6 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
