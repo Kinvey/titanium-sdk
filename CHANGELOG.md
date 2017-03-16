@@ -1,4 +1,10 @@
 ## Changelog
+## [v3.4.2](https://github.com/Kinvey/titanium-sdk/tree/v3.4.2) (2017-03-16)
+[Full Changelog](https://github.com/Kinvey/titanium-sdk/compare/v3.4.1...v3.4.2)<br/>
+
+**Changes:**
+- Updated package dependencies.
+
 ## [v3.3.5](https://github.com/Kinvey/titanium-sdk/tree/v3.3.5) (2016-01-25)
 [Full Changelog](https://github.com/Kinvey/titanium-sdk/compare/v3.2.5...v3.3.5)<br/>
 
