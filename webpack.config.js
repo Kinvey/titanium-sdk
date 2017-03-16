@@ -16,7 +16,7 @@ var BANNER = '/**\n'
 
 module.exports = {
   context: path.join(__dirname, 'dist'),
-  entry: ['./index.js'],
+  entry: ['./rxjs.js', './index.js'],
   module: {
     loaders: [
       { test: /\.json$/, loader: 'json-loader' }
