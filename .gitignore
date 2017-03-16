@@ -9,7 +9,7 @@ docs
 # Build Files
 .tmp
 tmp
-/s3
+s3
 dist
 
 # Test Files
@@ -19,5 +19,5 @@ report.xml
 
 # MacOS Files
 .DS_Store
-/shots
-/local.log
+shots
+local.log

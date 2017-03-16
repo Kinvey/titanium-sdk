@@ -21,15 +21,15 @@ README.md
 .env
 .tmp
 tmp
-/dist/kinvey-titanium-sdk.js
-/dist/kinvey-titanium-sdk.min.js
-/s3
+dist/kinvey-titanium-sdk.js
+dist/kinvey-titanium-sdk.min.js
+s3
 
 # Test Files
-/coverage
+coverage
 report.xml
 *.tap
-/test
+test
 
 # MacOS Files
 .DS_Store
