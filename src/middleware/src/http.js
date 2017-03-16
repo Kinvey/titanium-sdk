@@ -1,7 +1,9 @@
 import { Middleware } from 'kinvey-js-sdk/dist/export';
+import Promise from 'es6-promise';
 import parseHeaders from 'parse-headers';
 import isFunction from 'lodash/isFunction';
 import pkg from 'package.json';
+
 const defaultTimeout = process.env.KINVEY_TITANIUM_DEFAULT_TIMEOUT || 10000;
 
 // Helper function to detect the browser name and version.

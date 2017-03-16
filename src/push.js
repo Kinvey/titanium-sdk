@@ -8,10 +8,13 @@ import {
   isDefined,
   NotFoundError
 } from 'kinvey-js-sdk/dist/export';
+import Promise from 'es6-promise';
 import { EventEmitter } from 'events';
-import Device from './device';
 import url from 'url';
 import bind from 'lodash/bind';
+
+import Device from './device';
+
 const APP_DATA_NAMESPACE = process.env.KINVEY_DATASTORE_NAMESPACE || 'appdata';
 const PUSH_NAMESPACE = process.env.KINVEY_PUSH_NAMESPACE || 'push';
 const NOTIFICATION_EVENT = process.env.KINVEY_NOTIFICATION_EVENT || 'notification';

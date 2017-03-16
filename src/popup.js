@@ -1,7 +1,8 @@
 import { EventEmitter } from 'events';
-import Device from './device';
 import bind from 'lodash/bind';
 import isFunction from 'lodash/isFunction';
+
+import Device from './device';
 
 export default class Popup extends EventEmitter {
   open(url = '/', options = {}) {

@@ -1,6 +1,7 @@
 import { Middleware } from 'kinvey-js-sdk/dist/export';
-import Storage from './storage';
 import isEmpty from 'lodash/isEmpty';
+
+import Storage from './storage';
 
 export default class CacheMiddleware extends Middleware {
   constructor(name = 'Cache Middleware') {
