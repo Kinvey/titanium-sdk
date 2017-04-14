@@ -30,10 +30,6 @@ module.exports = {
     path: path.join(__dirname, 'dist')
   },
   plugins: [
-    new webpack.BannerPlugin(BANNER, { raw: true }),
-    new webpack.NormalModuleReplacementPlugin(
-      /kinvey-js-sdk\/dist\/identity\/src\/popup\.js/,
-      require.resolve(path.resolve(__dirname, 'dist/popup.js'))
-    )
+    new webpack.BannerPlugin(BANNER, { raw: true })
   ]
 };
