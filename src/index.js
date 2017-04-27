@@ -10,6 +10,6 @@ CacheRack.useCacheMiddleware(new CacheMiddleware());
 NetworkRack.useHttpMiddleware(new HttpMiddleware());
 
 // Add the Push module
-Kinvey.Push = Push;
+Kinvey.Push = new Push();
 
 module.exports = Kinvey;
