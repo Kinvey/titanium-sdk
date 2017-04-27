@@ -114,7 +114,7 @@ export default class TitaniumDB {
           `collection on the ${this.name} webSQL database.`);
       }
 
-      return entities[0];
+      return { count: count };
     });
 
     return promise;
