@@ -1,0 +1,20 @@
+language: node_js
+node_js:
+- '6'
+before_deploy: npm run build
+deploy:
+  provider: npm
+  email: thomas.conner@me.com
+  api_key:
+    secure: Rku5uIiu8H/EUDkTXpmuCahfAmrYqOtWk+G9pDu+lQv9tkCpkaWH5EAbU2nj0GXyHq8TozCE1mNNtgBRKbCCCI+nVS5s3F/0YZVyGRX31KHY2js9mBI6MLBzKlnkkmpTCUnvtrxrKURxvNndFPXVVykW69svfNpp+xlSgvfJH3EaoO6wvTyH9GM+rttWvNc60dnDc9tdSfsv3WxbaopUcOcdpCu4hDowCihh2VjzWlGQ+R1tEsRBWyUo7gom1R+pfTzWbjGek2l5Fj3CzhX7RSxKSOn1a653ziqmya42OVdYzy2+upPJq4OcHXzG/HIGNZyXejOxYDr8EVX3Wn9vTzGKTc3WLeSRXfCR8jq3tMc2h9hB3cK6z5RJQOaUQkoKBABYKAIFjjDqASTx4Y0avf69f6kJtlfZvJEj4L0vFicMbnm+7viT3dYAg7+KtVjam3HryA4yLPu3KCbpMA4PD6FzrM2yUAcev/gkQcDr8fc0BDynPSsyfbkatLQd85IYDERNfUS365K3jek3qdgxHeHao4FwLG2wrrNSQ/OMmU/zvvAo+nmexLo4N4dOC/ySx/AWTzF6pfUDrbj8io18iXINKTO0axkJTCz3N3BVuDUk/cnq/ykki/KB6CIStRimjF1BHQxnojogrr42cGU/fYFShw7GV200Eb0kB65dZxA=
+  on:
+    tags: true
+    repo: Kinvey/titanium-sdk
+notifications:
+  email:
+    on_success: change
+    on_failure: always
+  slack:
+    on_success: always
+    on_failure: always
+    secure: YitxCPtGnbdgDHINzFCQpTlr4QldEvfu88JUc5E4sdBLX36Ljy6pQ6UeWZLKbAhSYaH0yjaOhEhGTYKkN15Ougi0mgd5NGeUMN27hEwKYXyPFnLOWOnZyRfFoYMPT4L0dh8+Sm9/zsVubZqai76zxMAoNXvM52Xan2KMCvUA4P7WnWiL4XSEsRFMnaPiG9lh82jg+sZgDTBydMRAUx6pK9H7AYSad9IW7d/2ITkAT2qHUPeURqP6hBzLJUcUUArnAvoUuZCaWUQtyNvPsWe0MzWujrGyQTAOJgMtMXRh4vMqZf6HxCF1uHe5rXHk9PwDOf2GU11j29FaPyUfFu2u3KiTWjjLSy+OCz8DULQu78YUz76lcxb6T4R40v/iONM1XM09198daeb1VLZM2j8Q1QLu92EPpj9e22ZTCXUvXR5Pqf7vEkvA87aWtmdIvx+DWgcR+SVFKw0kq9R01ByhXq609Sc836LF6rzWPhox1IjEHwa8yqFROZV9ygUKpkhKgYOI94yMIRXItZ5DWbHa/J0gYzQUYCwVFmn8/48QIJMkBpd9DgVlGrQrdb6xbQFpop14z/Bjzxi4RjiBkEA+tzyWv+6XRzqUimPTe5qffCzguuGvdCxnUuLyINdyNwEZ4EBhWsq4UALRuA5MN/PnUwYrKRETgoNIESOSZzfI6rs=
