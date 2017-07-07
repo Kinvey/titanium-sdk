@@ -1,9 +1,9 @@
 import { Storage as NodeStorage, isDefined } from 'kinvey-js-sdk/dist/export';
-import TitaniumDB from './src/titaniumdb';
+import { TitaniumDBAdapter } from './src/titaniumdb';
 
 export default class Storage extends NodeStorage {
   loadAdapter() {
-    return TitaniumDB.load(this.name)
+    return TitaniumDBAdapter.load(this.name)
       .then((adapter) => {
         if (isDefined(adapter) === false) {
           return super.loadAdapter();

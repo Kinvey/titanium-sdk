@@ -1,6 +1,6 @@
 {
   "name": "kinvey-titanium-sdk",
-  "version": "3.4.5",
+  "version": "3.5.1-rc.4",
   "description": "Kinvey JavaScript SDK for Titanium applications.",
   "homepage": "http://www.kinvey.com",
   "bugs": {
@@ -20,15 +20,16 @@
   "scripts": {
     "build": "npm run clean && npm run transpile && npm run bundle && npm run minify",
     "bundle": "webpack",
-    "clean": "del coverage dist s3",
+    "clean": "rm -rf dist && rm -rf coverage && rm -rf s3",
     "minify": "uglifyjs --screw-ie8 --compress warnings=false --mangle --comments --output ./dist/kinvey-titanium-sdk.min.js -- ./dist/kinvey-titanium-sdk.js ",
     "cover": "istanbul cover _mocha -- --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
     "docs": "esdoc -c esdoc.json",
     "lint": "npm run lint:src",
     "lint:src": "eslint src/**",
     "lint:test": "eslint test/unit/**",
-    "preversion": "del node_modules && npm install && npm test",
-    "postversion": "git push && git push --tags",
+    "preversion": "rm -rf node_modules && npm install && npm test",
+    "version": "npm run build",
+    "postversion": "git push && git push --tags && rm -rf dist && rm -rf coverage && rm -rf s3",
     "s3": "npm run build && shjs ./scripts/s3.js",
     "test": "mocha --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
     "test:watch": "mocha -w --compilers js:babel-core/register -r babel-polyfill -s 100 --recursive test/unit/setup test/unit",
@@ -37,12 +38,9 @@
   "dependencies": {
     "core-js": "2.4.1",
     "es6-promise": "4.1.0",
-    "kinvey-js-sdk": "3.5.0",
+    "kinvey-js-sdk": "3.5.1",
     "lodash": "4.17.4",
     "parse-headers": "2.0.1"
-  },
-  "peerDependencies": {
-    "kinvey-js-sdk": "3.5.0"
   },
   "devDependencies": {
     "babel-cli": "6.24.0",

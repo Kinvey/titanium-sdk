@@ -7,7 +7,7 @@ import isFunction from 'lodash/isFunction';
 const idAttribute = process.env.KINVEY_ID_ATTRIBUTE || '_id';
 let isSupported;
 
-export default class TitaniumDB {
+class TitaniumDB {
   constructor(name = 'kinvey') {
     this.name = name;
   }
@@ -18,22 +18,25 @@ export default class TitaniumDB {
     query = isMulti ? query : [[query, parameters]];
 
     try {
-      if (!this.db) {
-        this.db = Ti.Database.open(this.name);
+      // Open the db connection
+      const db = Ti.Database.open(this.name);
+
+      if (!db.file.exists()) {
+        return Promise.reject(new Error('Titanium database file does not exist.'));
       }
 
       // Start a transaction
-      this.db.execute('BEGIN TRANSACTION');
+      db.execute('BEGIN');
 
       // Create the table if it does not exist yet
-      this.db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
+      db.execute(`CREATE TABLE IF NOT EXISTS ${escapedCollection} ` +
         '(key BLOB PRIMARY KEY NOT NULL, value BLOB NOT NULL)');
 
       // Execute queries
-      const response = map(query, (parts) => {
+      const response = query.map((parts) => {
         const sql = parts[0].replace('#{collection}', escapedCollection);
-        const cursor = this.db.execute(sql, parts[1]);
-        const response = { rowCount: this.db.getRowsAffected(), result: null };
+        const cursor = db.execute(sql, parts[1]);
+        const response = { rowCount: db.getRowsAffected(), result: null };
 
         if (cursor) {
           response.result = [];
@@ -51,7 +54,10 @@ export default class TitaniumDB {
       });
 
       // Commit the transaction
-      this.db.execute('COMMIT TRANSACTION');
+      db.execute('COMMIT');
+
+      // Close the db connection
+      db.close();
 
       return Promise.resolve(isMulti ? response : response.shift());
     } catch (error) {
@@ -61,29 +67,30 @@ export default class TitaniumDB {
 
   find(collection) {
     const sql = 'SELECT value FROM #{collection}';
-    const promise = this.execute(collection, sql, []).then(response => response.result).catch((error) => {
-      if (error instanceof NotFoundError) {
-        return [];
-      }
+    return this.execute(collection, sql, [])
+      .then(response => response.result)
+      .catch((error) => {
+        if (error instanceof NotFoundError) {
+          return [];
+        }
 
-      throw error;
-    });
-    return promise;
+        throw error;
+      });
   }
 
   findById(collection, id) {
     const sql = 'SELECT value FROM #{collection} WHERE key = ?';
-    const promise = this.execute(collection, sql, [id]).then((response) => {
-      const entities = response.result;
+    return this.execute(collection, sql, [id])
+      .then((response) => {
+        const entities = response.result;
 
-      if (entities.length === 0) {
-        throw new NotFoundError(`An entity with _id = ${id} was not found in the ${collection} ` +
-          `collection on the ${this.name} webSQL database.`);
-      }
+        if (entities.length === 0) {
+          throw new NotFoundError(`An entity with _id = ${id} was not found in the ${collection} ` +
+            `collection on the ${this.name} webSQL database.`);
+        }
 
-      return entities[0];
-    });
-    return promise;
+        return entities[0];
+      });
   }
 
   save(collection, entities) {
@@ -97,51 +104,52 @@ export default class TitaniumDB {
       return entity;
     });
 
-    const promise = this.execute(collection, queries, null).then(() => entities);
-    return promise;
+    return this.execute(collection, queries, null)
+      .then(() => entities);
   }
 
   removeById(collection, id) {
-    const promise = this.execute(collection, [
+    return this.execute(collection, [
       ['SELECT value FROM #{collection} WHERE key = ?', [id]],
       ['DELETE FROM #{collection} WHERE key = ?', [id]],
-    ], null).then((response) => {
-      const entities = response[0].result;
-      const count = response[1].rowCount || entities.length;
+    ], null)
+      .then((response) => {
+        const entities = response[0].result;
+        const count = response[1].rowCount || entities.length;
 
-      if (count === 0) {
-        throw new NotFoundError(`An entity with _id = ${id} was not found in the ${collection} ` +
-          `collection on the ${this.name} webSQL database.`);
-      }
+        if (count === 0) {
+          throw new NotFoundError(`An entity with _id = ${id} was not found in the ${collection} ` +
+            `collection on the ${this.name} webSQL database.`);
+        }
 
-      return { count: count };
-    });
-
-    return promise;
+        return { count: count };
+      });
   }
 
   clear() {
-    if (!this.db) {
-      this.db = Ti.Database.open(this.name);
-    }
+    const db = Ti.Database.open(this.name);
 
-    if (isFunction(this.db.remove)) { // Android
-      this.db.remove();
+    if (isFunction(db.remove)) { // Android
+      db.remove();
+      db.close();
       return Promise.resolve(null);
     }
 
-    if (this.db.file && this.db.file.deleteFile()) { // iOS
+    if (db.file && db.file.deleteFile()) { // iOS
+      db.close();
       return Promise.resolve(null);
     }
 
     return Promise.reject(new Error('The ability to delete the database is not implemented for this platform.'));
   }
+}
 
-  static load(name) {
+const TitaniumDBAdapter = {
+  load(name) {
     const db = new TitaniumDB(name);
 
     if (typeof isSupported !== 'undefined') {
-      if (isSupported) {
+      if (isSupported === true) {
         return Promise.resolve(db);
       }
 
@@ -163,4 +171,6 @@ export default class TitaniumDB {
         return undefined;
       });
   }
-}
+};
+
+export { TitaniumDBAdapter };
