@@ -1,4 +1,28 @@
-## Changelog
+# Change Log
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](http://semver.org/).
+
+## [3.5.2](https://github.com/Kinvey/titanium-sdk/tree/v3.5.2) (2017-07-08)
+[Full Changelog](https://github.com/Kinvey/titanium-sdk/compare/v3.5.1...v3.5.2)<br/>
+
+### Added
+_None_
+
+### Removed
+_None_
+
+### Changed/Fixed
+- Fixed bug caused by database connections left open.
+- Updated [kinvey-js-sdk](https://github.com/Kinvey/js-sdk) dependency to [3.5.2](https://github.com/Kinvey/js-sdk/tree/v3.5.2)
+
+### Merged Pull Requests
+- Fix DB Bug [#11](https://github.com/Kinvey/titanium-sdk/pull/11)
+
+### Closed Issues
+- KInvey User Sign Up throws a 500 error [#10](https://github.com/Kinvey/titanium-sdk/issues/10)
+
 ## [3.5.0](https://github.com/Kinvey/titanium-sdk/tree/v3.5.0) (2017-04-24)
 [Full Changelog](https://github.com/Kinvey/titanium-sdk/compare/v3.4.5...v3.5.0)<br/>
 
