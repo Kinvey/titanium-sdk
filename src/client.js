@@ -1,5 +1,5 @@
 import isString from 'lodash/isString';
-import { Client as CoreClient, KinveyError, isDefined } from 'kinvey-js-sdk/dist/export';
+import { Client as CoreClient, KinveyError, isDefined, Log } from 'kinvey-js-sdk/dist/export';
 let storage = Ti.App.Properties;
 
 class ActiveUserStorage {
@@ -11,6 +11,7 @@ class ActiveUserStorage {
     try {
       return JSON.parse(storage.getString(key));
     } catch (e) {
+      Log.debug('Unable to parse stored active user.', e);
       return null;
     }
   }
@@ -42,7 +43,7 @@ export class Client extends CoreClient {
           secret: client.encryptionKey
         });
       } catch (e) {
-        // Catch error
+        Log.debug('Unable to require the bencoding.securely module.', e);
       }
     }
 
