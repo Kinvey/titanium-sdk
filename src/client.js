@@ -3,6 +3,20 @@ import { Client as CoreClient, KinveyError, isDefined, Log } from 'kinvey-js-sdk
 let storage = Ti.App.Properties;
 
 class ActiveUserStorage {
+  constructor(client) {
+    if (isDefined(client.encryptionKey)) {
+      try {
+        // eslint-disable-next-line
+        const securely = require('bencoding.securely');
+        storage = securely.createProperties({
+          secret: client.encryptionKey
+        });
+      } catch (e) {
+        Log.debug('Unable to require the bencoding.securely module. Please install it to securely store the active user.', e);
+      }
+    }
+  }
+
   get(key) {
     if (!isString(key)) {
       throw new KinveyError('ActiveUserStorage key must be a string.');
@@ -34,20 +48,7 @@ class ActiveUserStorage {
 export class Client extends CoreClient {
   static init(config) {
     const client = CoreClient.init(config);
-
-    if (isDefined(client.encryptionKey)) {
-      try {
-        // eslint-disable-next-line
-        const securely = require('bencoding.securely');
-        storage = securely.createProperties({
-          secret: client.encryptionKey
-        });
-      } catch (e) {
-        Log.debug('Unable to require the bencoding.securely module.', e);
-      }
-    }
-
-    client.activeUserStorage = new ActiveUserStorage();
+    client.activeUserStorage = new ActiveUserStorage(client);
     return client;
   }
 }
