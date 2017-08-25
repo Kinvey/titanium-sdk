@@ -1,11 +1,55 @@
 import { Promise } from 'es6-promise';
-import { Kinvey as CoreKinvey, isDefined, KinveyError } from 'kinvey-js-sdk/dist/export';
+import url from 'url';
+import {
+  Kinvey as CoreKinvey,
+  isDefined,
+  KinveyError,
+  User,
+  CacheRequest,
+  RequestMethod
+} from 'kinvey-js-sdk/dist/export';
 import { Client } from './client';
+
+const USERS_NAMESPACE = 'user';
+const ACTIVE_USER_COLLECTION_NAME = 'kinvey_active_user';
 
 export class Kinvey extends CoreKinvey {
   static initialize(config) {
     const client = Kinvey.init(config);
-    return Promise.resolve(client.getActiveUser());
+    const activeUser = User.getActiveUser(client);
+
+    if (isDefined(activeUser)) {
+      return Promise.resolve(activeUser);
+    }
+
+    const request = new CacheRequest({
+      method: RequestMethod.GET,
+      url: url.format({
+        protocol: client.apiProtocol,
+        host: client.apiHost,
+        pathname: `/${USERS_NAMESPACE}/${client.appKey}/${ACTIVE_USER_COLLECTION_NAME}`
+      })
+    });
+    return request.execute()
+      .then(response => response.data)
+      .then((activeUsers) => {
+        if (activeUsers.length > 0) {
+          return activeUsers[0];
+        }
+
+        return null;
+      })
+      .then((activeUser) => {
+        if (isDefined(activeUser)) {
+          if (isDefined(activeUser.data)) {
+            return client.setActiveUser(activeUser.data);
+          }
+
+          return client.setActiveUser(activeUser);
+        }
+
+        return activeUser;
+      });
   }
 
   static init(options = {}) {
