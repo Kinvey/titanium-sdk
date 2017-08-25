@@ -13,6 +13,7 @@ class ActiveUserStorage {
         });
       } catch (e) {
         Log.debug('Unable to require the bencoding.securely module. Please install it to securely store the active user.', e);
+        throw new KinveyError('Unable to require the bencoding.securely module. Please install https://github.com/benbahrenburg/Securely to securely store the active user.');
       }
     }
   }
