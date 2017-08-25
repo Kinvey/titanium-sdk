@@ -23,6 +23,9 @@ module.exports = {
     ],
     noParse: [/cloudpush.js/]
   },
+  externals: {
+    'bencoding.securely': 'bencoding.securely'
+  },
   output: {
     filename: pkg.name + '.js',
     libraryTarget: 'umd',
