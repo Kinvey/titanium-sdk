@@ -49,7 +49,10 @@ export class Kinvey extends CoreKinvey {
         }
 
         return activeUser;
-      });
+      })
+      .then(() => {
+        return User.getActiveUser(client);
+      })
   }
 
   static init(options = {}) {
